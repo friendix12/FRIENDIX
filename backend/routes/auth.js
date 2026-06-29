@@ -11,18 +11,32 @@ router.post('/register', async (req, res) => {
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({ error: 'সব তথ্য দেওয়া বাধ্যতামূলক।' });
     }
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) return res.status(400).json({ error: 'এই ইমেইল দিয়ে ইতিমধ্যে অ্যাকাউন্ট আছে।' });
+
+    const isEmail = email.includes('@');
+    const query = isEmail ? { email: email.toLowerCase() } : { phone: email.trim() };
+    const existingUser = await User.findOne(query);
+    if (existingUser) {
+      return res.status(400).json({ error: isEmail ? 'এই ইমেইল দিয়ে ইতিমধ্যে অ্যাকাউন্ট আছে।' : 'এই ফোন নাম্বার দিয়ে ইতিমধ্যে অ্যাকাউন্ট আছে।' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
-    const user = await User.create({
+    
+    const userPayload = {
       firstName,
       lastName,
       fullName: `${firstName} ${lastName}`,
-      email: email.toLowerCase(),
       password: hashedPassword,
       dob: dob || '',
       gender: gender || '',
-    });
+    };
+
+    if (isEmail) {
+      userPayload.email = email.toLowerCase();
+    } else {
+      userPayload.phone = email.trim();
+    }
+
+    const user = await User.create(userPayload);
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '30d' });
     const { password: _, ...userData } = user.toObject();
     res.status(201).json({ token, user: userData });
@@ -35,11 +49,21 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'ইমেইল এবং পাসওয়ার্ড দিন।' });
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
-    if (!user) return res.status(400).json({ error: 'ইমেইল বা পাসওয়ার্ড ভুল।' });
+    if (!email || !password) return res.status(400).json({ error: 'ইমেইল বা মোবাইল নাম্বার এবং পাসওয়ার্ড দিন।' });
+    
+    const identifier = email.trim();
+    const isEmail = identifier.includes('@');
+    
+    const user = await User.findOne({
+      $or: [
+        { email: isEmail ? identifier.toLowerCase() : '' },
+        { phone: identifier }
+      ]
+    }).select('+password');
+
+    if (!user) return res.status(400).json({ error: 'ইমেইল/মোবাইল বা পাসওয়ার্ড ভুল।' });
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ error: 'ইমেইল বা পাসওয়ার্ড ভুল।' });
+    if (!isMatch) return res.status(400).json({ error: 'ইমেইল/মোবাইল বা পাসওয়ার্ড ভুল।' });
     if (user.banned) return res.status(403).json({ error: 'আপনার অ্যাকাউন্ট নিষিদ্ধ করা হয়েছে।' });
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '30d' });
     const { password: _, ...userData } = user.toObject();
@@ -65,12 +89,20 @@ router.post('/reset-password', async (req, res) => {
   try {
     const { email, newPassword, oldPassword, firstName, lastName, type } = req.body;
     if (!email || !newPassword) {
-      return res.status(400).json({ error: 'ইমেইল এবং নতুন পাসওয়ার্ড দিন।' });
+      return res.status(400).json({ error: 'ইমেইল/মোবাইল এবং নতুন পাসওয়ার্ড দিন।' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+    const identifier = email.trim();
+    const isEmail = identifier.includes('@');
+    const user = await User.findOne({
+      $or: [
+        { email: isEmail ? identifier.toLowerCase() : '' },
+        { phone: identifier }
+      ]
+    }).select('+password');
+
     if (!user) {
-      return res.status(404).json({ error: 'এই ইমেইল দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি।' });
+      return res.status(404).json({ error: 'এই ইমেইল বা মোবাইল নাম্বার দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি।' });
     }
 
     if (type === 'change') {
