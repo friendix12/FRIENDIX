@@ -75,7 +75,9 @@ const LeftSidebar = () => {
         <span className="sidebar-profile-name">{currentUser?.fullName}</span>
       </div>
 
-      {/* 🔥 Professional Dashboard — visible only when pro mode is ON */}
+      {/* Navigation Items */}
+      <nav className="sidebar-nav">
+        {/* 🔥 Professional Dashboard — visible only when pro mode is ON */}
         {currentUser?.isProfessional && (
           <Link to="/professional-dashboard" className="sidebar-nav-item sidebar-pro-item" id="sidebar-pro-dashboard">
             <span className="sidebar-nav-icon sidebar-pro-icon">
@@ -107,6 +109,7 @@ const LeftSidebar = () => {
           </span>
         </button>
       </nav>
+
 
       <div style={{ height: '1px', background: 'var(--border-light)', margin: '12px 0' }} />
 
