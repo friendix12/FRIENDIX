@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 // GET /api/users/search?q=name — search users
 router.get('/search', auth, async (req, res) => {
@@ -76,6 +77,15 @@ router.post('/:id/friend-request', auth, async (req, res) => {
     if (target.friendRequests.includes(req.userId)) return res.status(400).json({ error: 'রিকোয়েস্ট ইতিমধ্যে পাঠানো হয়েছে।' });
     await User.findByIdAndUpdate(req.params.id, { $addToSet: { friendRequests: req.userId } });
     await User.findByIdAndUpdate(req.userId, { $addToSet: { sentRequests: req.params.id } });
+
+    // Create notification
+    await Notification.create({
+      userId: req.params.id,
+      fromId: req.userId,
+      type: 'friend_request',
+      message: 'আপনাকে ফ্রেন্ড রিকোয়েস্ট পাঠিয়েছেন।'
+    });
+
     res.json({ message: 'ফ্রেন্ড রিকোয়েস্ট পাঠানো হয়েছে।' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -93,7 +103,27 @@ router.post('/:id/accept-request', auth, async (req, res) => {
       $pull: { sentRequests: req.userId },
       $addToSet: { friends: req.userId },
     });
+
+    // Create notification
+    await Notification.create({
+      userId: req.params.id,
+      fromId: req.userId,
+      type: 'friend_accepted',
+      message: 'আপনার ফ্রেন্ড রিকোয়েস্ট গ্রহণ করেছেন।'
+    });
+
     res.json({ message: 'ফ্রেন্ড রিকোয়েস্ট গ্রহণ করা হয়েছে।' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/users/:id/decline-request — decline friend request
+router.delete('/:id/decline-request', auth, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.userId, { $pull: { friendRequests: req.params.id } });
+    await User.findByIdAndUpdate(req.params.id, { $pull: { sentRequests: req.userId } });
+    res.json({ message: 'ফ্রেন্ড রিকোয়েস্ট বাতিল করা হয়েছে।' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { mockStories, mockUsers } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { FiPlus, FiX, FiChevronLeft, FiChevronRight, FiMusic, FiEye, FiImage, FiType } from 'react-icons/fi';
 import './Stories.css';
@@ -16,11 +15,18 @@ const MUSIC_TRACKS = [
 
 const Stories = () => {
   const { currentUser } = useAuth();
-  const [localStories, setLocalStories] = useState(mockStories);
+  const [localStories, setLocalStories] = useState(() => {
+    const saved = localStorage.getItem('friendix_local_stories');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [activeStory, setActiveStory] = useState(null);
   const [progress, setProgress] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewerList, setShowViewerList] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('friendix_local_stories', JSON.stringify(localStories));
+  }, [localStories]);
 
   // Floating emojis state
   const [floatingEmojis, setFloatingEmojis] = useState([]);
@@ -88,14 +94,16 @@ const Stories = () => {
 
     const newStory = {
       id: `s_${Date.now()}`,
-      authorId: currentUser?.id || '1',
+      authorId: currentUser?.id,
+      authorName: currentUser?.fullName,
+      authorAvatar: currentUser?.avatar,
       image: storyFilePreview,
       text: storyForm.text,
       filter: storyForm.filter,
       musicUrl: selectedMusic?.url || '',
       musicLabel: selectedMusic?.id !== 'none' ? selectedMusic?.label : '',
       bgColor: storyForm.bgColor,
-      viewers: ['Sadia Islam', 'Rahim Uddin', 'Karim Ahmed'],
+      viewers: [],
       createdAt: new Date().toISOString()
     };
 
@@ -162,7 +170,10 @@ const Stories = () => {
 
           {/* Story Cards */}
           {localStories.map(story => {
-            const author = mockUsers.find(u => u.id === story.authorId);
+            const isMe = story.authorId === currentUser?.id;
+            const authorName = story.authorName || (isMe ? currentUser?.fullName : 'User');
+            const authorAvatar = story.authorAvatar || (isMe ? currentUser?.avatar : '');
+            const authorFirstName = authorName.split(' ')[0];
             return (
               <div
                 key={story.id}
@@ -173,15 +184,21 @@ const Stories = () => {
                 id={`story-card-${story.id}`}
               >
                 <img
-                  src={story.image || author?.avatar}
-                  alt={author?.fullName}
+                  src={story.image || authorAvatar}
+                  alt={authorName}
                   className={`story-bg-img filter-${story.filter || 'none'}`}
                 />
                 <div className="story-gradient" />
                 <div className="story-avatar-ring">
-                  <img src={author?.avatar} alt={author?.fullName} className="story-avatar" />
+                  {authorAvatar ? (
+                    <img src={authorAvatar} alt={authorName} className="story-avatar" />
+                  ) : (
+                    <div className="avatar-placeholder story-avatar" style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', color: 'white', background: 'var(--primary)' }}>
+                      {authorFirstName[0]}
+                    </div>
+                  )}
                 </div>
-                <p className="story-name">{author?.firstName || 'User'}</p>
+                <p className="story-name">{authorFirstName}</p>
               </div>
             );
           })}

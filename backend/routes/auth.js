@@ -76,7 +76,9 @@ router.post('/login', async (req, res) => {
 // GET /api/auth/me — get current logged-in user
 router.get('/me', require('../middleware/auth'), async (req, res) => {
   try {
-    const user = await User.findById(req.userId);
+    const user = await User.findById(req.userId)
+      .populate('friendRequests', 'fullName firstName lastName avatar')
+      .populate('friends', 'fullName firstName lastName avatar');
     if (!user) return res.status(404).json({ error: 'ব্যবহারকারী পাওয়া যায়নি।' });
     res.json({ user });
   } catch (err) {

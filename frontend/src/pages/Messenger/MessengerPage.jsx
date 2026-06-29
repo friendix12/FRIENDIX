@@ -1,38 +1,71 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Navbar from '../../components/Navbar/Navbar';
-import { mockUsers, mockMessages, formatTime } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
-import { FiEdit, FiSettings, FiSearch, FiPhone, FiVideo, FiInfo, FiImage, FiSmile, FiSend, FiFile, FiPaperclip } from 'react-icons/fi';
+import { messagesAPI } from '../../services/api';
+import { FiEdit, FiSettings, FiSearch, FiPhone, FiVideo, FiInfo, FiImage, FiSmile, FiSend, FiPaperclip } from 'react-icons/fi';
 import './MessengerPage.css';
 
 const MessengerPage = () => {
   const { currentUser } = useAuth();
-  const [activeChat, setActiveChat] = useState(mockUsers.find(u => u.id !== currentUser?.id));
-  const [messages, setMessages] = useState(mockMessages);
+  const [activeChat, setActiveChat] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
   const [input, setInput] = useState('');
   const [search, setSearch] = useState('');
+  const messagesEndRef = useRef(null);
 
-  const contacts = mockUsers.filter(u => u.id !== currentUser?.id);
+  const contacts = currentUser?.friends || [];
   const filteredContacts = contacts.filter(u =>
     u.fullName.toLowerCase().includes(search.toLowerCase())
   );
 
-  const chatMessages = messages[activeChat?.id] || [];
+  const fetchChatMessages = async (userId) => {
+    try {
+      const data = await messagesAPI.getMessages(userId);
+      setChatMessages(data.messages || []);
+    } catch (err) {
+      console.error('Failed to load chat messages:', err);
+    }
+  };
 
-  const handleSend = (e) => {
+  useEffect(() => {
+    if (activeChat) {
+      const activeId = activeChat._id || activeChat.id;
+      fetchChatMessages(activeId);
+      // Auto-poll messages every 4 seconds for a pseudo-realtime feel without sockets overhead
+      const interval = setInterval(() => {
+        fetchChatMessages(activeId);
+      }, 4000);
+      return () => clearInterval(interval);
+    }
+  }, [activeChat]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const handleSend = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    const newMsg = {
-      id: `m${Date.now()}`,
-      senderId: currentUser?.id,
-      content: input.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    setMessages({
-      ...messages,
-      [activeChat?.id]: [...(messages[activeChat?.id] || []), newMsg],
-    });
+    if (!input.trim() || !activeChat) return;
+
+    const activeId = activeChat._id || activeChat.id;
+    const content = input.trim();
     setInput('');
+
+    // Prepend locally for immediate feel
+    const tempMsg = {
+      _id: `temp_${Date.now()}`,
+      senderId: currentUser?.id,
+      content,
+      createdAt: new Date().toISOString()
+    };
+    setChatMessages(prev => [...prev, tempMsg]);
+
+    try {
+      await messagesAPI.sendMessage(activeId, content);
+      fetchChatMessages(activeId);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    }
   };
 
   return (
@@ -63,34 +96,38 @@ const MessengerPage = () => {
           </div>
 
           <div className="contact-list">
-            {filteredContacts.map((user, i) => {
-              const lastMsg = (messages[user.id] || []).slice(-1)[0];
-              const isActive = activeChat?.id === user.id;
+            {filteredContacts.map((user) => {
+              const userId = user._id || user.id;
+              const isActive = activeChat && (activeChat._id || activeChat.id) === userId;
               return (
                 <div
-                  key={user.id}
+                  key={userId}
                   className={`contact-list-item ${isActive ? 'active' : ''}`}
                   onClick={() => setActiveChat(user)}
-                  id={`contact-${user.id}`}
+                  id={`contact-${userId}`}
                 >
                   <div style={{ position: 'relative', flexShrink: 0 }}>
-                    <img src={user.avatar} alt={user.fullName} className="avatar avatar-lg" />
-                    {i < 3 && <span className="online-dot" />}
+                    {user.avatar ? (
+                      <img src={user.avatar} alt={user.fullName} className="avatar avatar-lg" />
+                    ) : (
+                      <div className="avatar-placeholder avatar-lg">
+                        {user.firstName?.[0]}{user.lastName?.[0]}
+                      </div>
+                    )}
+                    <span className="online-dot" />
                   </div>
                   <div className="contact-info">
                     <p className="contact-list-name">{user.fullName}</p>
-                    <p className="contact-last-msg">
-                      {lastMsg
-                        ? `${lastMsg.senderId === currentUser?.id ? 'You: ' : ''}${lastMsg.content}`
-                        : i < 3 ? 'Active now' : 'Send a message'}
-                    </p>
-                  </div>
-                  <div className="contact-meta">
-                    {lastMsg && <span className="contact-time">{formatTime(lastMsg.createdAt)}</span>}
+                    <p className="contact-last-msg">Active now</p>
                   </div>
                 </div>
               );
             })}
+            {filteredContacts.length === 0 && (
+              <p style={{ textAlign: 'center', padding: '20px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                No chats found. Add friends to start chatting!
+              </p>
+            )}
           </div>
         </div>
 
@@ -101,12 +138,18 @@ const MessengerPage = () => {
               {/* Chat Header */}
               <div className="chat-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ position: 'relative' }}>
-                    <img src={activeChat?.avatar} alt={activeChat?.fullName} className="avatar avatar-md" />
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    {activeChat.avatar ? (
+                      <img src={activeChat.avatar} alt={activeChat.fullName} className="avatar avatar-md" />
+                    ) : (
+                      <div className="avatar-placeholder avatar-md">
+                        {activeChat.firstName?.[0]}{activeChat.lastName?.[0]}
+                      </div>
+                    )}
                     <span className="online-dot" />
                   </div>
                   <div>
-                    <p className="chat-user-name">{activeChat?.fullName}</p>
+                    <p className="chat-user-name">{activeChat.fullName}</p>
                     <p className="chat-user-status">Active now</p>
                   </div>
                 </div>
@@ -121,8 +164,14 @@ const MessengerPage = () => {
               <div className="chat-messages" id="chat-messages">
                 {chatMessages.length === 0 && (
                   <div className="chat-empty">
-                    <img src={activeChat?.avatar} alt="" className="avatar avatar-2xl" style={{ margin: '0 auto 12px' }} />
-                    <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>{activeChat?.fullName}</p>
+                    {activeChat.avatar ? (
+                      <img src={activeChat.avatar} alt="" className="avatar avatar-2xl" style={{ margin: '0 auto 12px' }} />
+                    ) : (
+                      <div className="avatar-placeholder avatar-2xl" style={{ margin: '0 auto 12px' }}>
+                        {activeChat.firstName?.[0]}{activeChat.lastName?.[0]}
+                      </div>
+                    )}
+                    <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>{activeChat.fullName}</p>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.87rem', marginTop: '4px' }}>
                       Start your conversation by sending a message.
                     </p>
@@ -131,10 +180,17 @@ const MessengerPage = () => {
 
                 {chatMessages.map(msg => {
                   const isMine = msg.senderId === currentUser?.id;
+                  const msgId = msg._id || msg.id;
                   return (
-                    <div key={msg.id} className={`message-row ${isMine ? 'mine' : 'theirs'}`}>
+                    <div key={msgId} className={`message-row ${isMine ? 'mine' : 'theirs'}`}>
                       {!isMine && (
-                        <img src={activeChat?.avatar} alt="" className="avatar avatar-xs" style={{ flexShrink: 0 }} />
+                        activeChat.avatar ? (
+                          <img src={activeChat.avatar} alt="" className="avatar avatar-xs" style={{ flexShrink: 0 }} />
+                        ) : (
+                          <div className="avatar-placeholder avatar-xs" style={{ flexShrink: 0 }}>
+                            {activeChat.firstName?.[0]}{activeChat.lastName?.[0]}
+                          </div>
+                        )
                       )}
                       <div className={`message-bubble ${isMine ? 'bubble-mine' : 'bubble-theirs'}`}>
                         {msg.content}
@@ -142,6 +198,7 @@ const MessengerPage = () => {
                     </div>
                   );
                 })}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Input */}
@@ -169,10 +226,10 @@ const MessengerPage = () => {
               </div>
             </>
           ) : (
-            <div className="chat-empty" style={{ height: '100%' }}>
-              <p style={{ fontSize: '3rem', marginBottom: '16px' }}>💬</p>
-              <h3>Your Messages</h3>
-              <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>
+            <div className="chat-empty" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <p style={{ fontSize: '3rem', marginBottom: '16px', margin: 0 }}>💬</p>
+              <h3 style={{ margin: 0 }}>Your Messages</h3>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '8px', margin: 0 }}>
                 Chat privately with your friends.
               </p>
             </div>

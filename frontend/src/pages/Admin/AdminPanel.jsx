@@ -421,38 +421,47 @@ const AdminPanel = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map(user => (
-                      <tr key={user.id} className={user.banned ? 'banned-row' : ''}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <img src={user.avatar} alt="" className="avatar avatar-sm" />
-                            <span style={{ fontWeight: 600, fontSize: '0.87rem' }}>{user.fullName}</span>
-                          </div>
-                        </td>
-                        <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{user.email}</td>
-                        <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{user.location || '—'}</td>
-                        <td>
-                          <span className={`role-badge ${user.isAdmin ? 'admin' : 'user'}`}>
-                            {user.isAdmin ? '👑 Admin' : '👤 User'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`status-badge ${user.banned ? 'banned' : 'active'}`}>
-                            {user.banned ? 'Banned' : 'Active'}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            className={`btn btn-sm ${user.banned ? 'btn-primary' : 'btn-danger'}`}
-                            onClick={() => banUser(user.id)}
-                            disabled={user.id === currentUser?.id}
-                            id={`ban-user-${user.id}`}
-                          >
-                            {user.banned ? 'Unban Account' : 'Ban Account'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {users.map(user => {
+                      const userId = user._id || user.id;
+                      return (
+                        <tr key={userId} className={user.banned ? 'banned-row' : ''}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {user.avatar ? (
+                                <img src={user.avatar} alt="" className="avatar avatar-sm" />
+                              ) : (
+                                <div className="avatar-placeholder avatar-sm" style={{ width: '32px', height: '32px', fontSize: '0.75rem' }}>
+                                  {user.firstName?.[0]}{user.lastName?.[0]}
+                                </div>
+                              )}
+                              <span style={{ fontWeight: 600, fontSize: '0.87rem' }}>{user.fullName}</span>
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{user.email || user.phone || '—'}</td>
+                          <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{user.location || '—'}</td>
+                          <td>
+                            <span className={`role-badge ${user.isAdmin ? 'admin' : 'user'}`}>
+                              {user.isAdmin ? '👑 Admin' : '👤 User'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`status-badge ${user.banned ? 'banned' : 'active'}`}>
+                              {user.banned ? 'Banned' : 'Active'}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              className={`btn btn-sm ${user.banned ? 'btn-primary' : 'btn-danger'}`}
+                              onClick={() => banUser(userId)}
+                              disabled={userId === currentUser?.id}
+                              id={`ban-user-${userId}`}
+                            >
+                              {user.banned ? 'Unban Account' : 'Ban Account'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

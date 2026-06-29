@@ -100,6 +100,8 @@ export const usersAPI = {
 
   acceptFriendRequest: (userId) => apiFetch(`/users/${userId}/accept-request`, { method: 'POST' }),
 
+  declineFriendRequest: (userId) => apiFetch(`/users/${userId}/decline-request`, { method: 'DELETE' }),
+
   unfriend: (userId) => apiFetch(`/users/${userId}/unfriend`, { method: 'DELETE' }),
 };
 

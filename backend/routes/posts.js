@@ -5,6 +5,7 @@ const upload = multer({ limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB lim
 const auth = require('../middleware/auth');
 const Post = require('../models/Post');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const { uploadToCloudinary } = require('../utils/cloudinaryUpload');
 const { uploadToTelegram } = require('../utils/telegramUpload');
 
@@ -103,6 +104,17 @@ router.put('/:id/react', auth, async (req, res) => {
       post.likes.push(req.userId);
       if (type && post.reactions[type] !== undefined) post.reactions[type]++;
       else post.reactions.like++;
+
+      // Create notification
+      if (post.authorId.toString() !== req.userId) {
+        await Notification.create({
+          userId: post.authorId,
+          fromId: req.userId,
+          type: 'like',
+          postId: post._id,
+          message: 'আপনার পোস্টে রিঅ্যাকশন দিয়েছেন।'
+        });
+      }
     }
     await post.save();
     res.json({ post, liked: !alreadyLiked });
@@ -120,6 +132,18 @@ router.post('/:id/comment', auth, async (req, res) => {
     if (!post) return res.status(404).json({ error: 'পোস্ট পাওয়া যায়নি।' });
     post.comments.push({ authorId: req.userId, content });
     await post.save();
+
+    // Create notification
+    if (post.authorId.toString() !== req.userId) {
+      await Notification.create({
+        userId: post.authorId,
+        fromId: req.userId,
+        type: 'comment',
+        postId: post._id,
+        message: 'আপনার পোস্টে একটি মন্তব্য করেছেন।'
+      });
+    }
+
     const updated = await Post.findById(req.params.id)
       .populate('authorId', 'fullName avatar')
       .populate('comments.authorId', 'fullName avatar');

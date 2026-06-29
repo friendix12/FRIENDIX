@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { mockUsers, mockNotifications } from '../../data/mockData';
+import { usersAPI, notificationsAPI } from '../../services/api';
 import {
   FiHome, FiVideo, FiShoppingBag, FiUsers, FiZap,
   FiBell, FiMessageSquare, FiSearch, FiX, FiSettings,
@@ -21,12 +21,22 @@ const Navbar = ({ activePage = 'home' }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showMessengerDrop, setShowMessengerDrop] = useState(false);
   const [activeSubMenu, setActiveSubMenu] = useState(null); // 'settings', 'help', or null
+  const [notifications, setNotifications] = useState([]);
+
   const searchRef = useRef(null);
   const notifRef = useRef(null);
   const menuRef = useRef(null);
   const messengerRef = useRef(null);
 
-  const unreadNotifCount = mockNotifications.filter(n => !n.read).length;
+  const unreadNotifCount = notifications.filter(n => !n.read).length;
+
+  useEffect(() => {
+    if (currentUser) {
+      notificationsAPI.getAll()
+        .then(data => setNotifications(data.notifications || []))
+        .catch(err => console.error(err));
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -42,17 +52,30 @@ const Navbar = ({ activePage = 'home' }) => {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const handleSearch = (val) => {
+  const handleSearch = async (val) => {
     setSearch(val);
     if (val.trim()) {
-      const results = mockUsers.filter(u =>
-        u.fullName.toLowerCase().includes(val.toLowerCase()) && u.id !== currentUser?.id
-      ).slice(0, 5);
-      setSearchResults(results);
-      setShowSearch(true);
+      try {
+        const res = await usersAPI.searchUsers(val);
+        setSearchResults(res.users || []);
+        setShowSearch(true);
+      } catch (err) {
+        console.error(err);
+      }
     } else {
       setSearchResults([]);
       setShowSearch(false);
+    }
+  };
+
+  const handleOpenNotifications = () => {
+    setShowNotif(!showNotif);
+    if (!showNotif && unreadNotifCount > 0) {
+      notificationsAPI.markAllRead()
+        .then(() => {
+          setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        })
+        .catch(err => console.error(err));
     }
   };
 
@@ -65,7 +88,7 @@ const Navbar = ({ activePage = 'home' }) => {
   ];
 
   const getNotifIcon = (type) => {
-    const map = { like: '👍', comment: '💬', friend_request: '👤', birthday: '🎂' };
+    const map = { like: '👍', comment: '💬', friend_request: '👤', friend_accepted: '🤝', birthday: '🎂' };
     return map[type] || '🔔';
   };
 
@@ -181,7 +204,7 @@ const Navbar = ({ activePage = 'home' }) => {
             <button
               id="navbar-notifications"
               className={`nav-action-btn ${showNotif ? 'active' : ''}`}
-              onClick={() => { setShowNotif(!showNotif); setShowMenu(false); setShowMessengerDrop(false); }}
+              onClick={handleOpenNotifications}
               data-tooltip="Notifications"
             >
               <FiBell size={20} />
@@ -194,28 +217,53 @@ const Navbar = ({ activePage = 'home' }) => {
               <div className="navbar-dropdown animate-fadeIn">
                 <div className="dropdown-header">
                   <h3>Notifications</h3>
-                  <button className="icon-btn">Mark all as read</button>
+                  <button className="icon-btn" onClick={handleOpenNotifications}>Mark all as read</button>
                 </div>
-                <p className="notif-section-label">New</p>
-                {mockNotifications.map(n => (
-                  <div key={n.id} className={`notif-item ${!n.read ? 'unread' : ''}`}>
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <img
-                        src={mockUsers.find(u => u.id === n.fromUserId)?.avatar}
-                        alt=""
-                        className="avatar avatar-md"
-                      />
-                      <span className="notif-type-icon">{getNotifIcon(n.type)}</span>
+                <p className="notif-section-label">All Notifications</p>
+                {notifications.map(n => {
+                  const notifId = n._id || n.id;
+                  const sender = n.fromId || {};
+                  return (
+                    <div
+                      key={notifId}
+                      className={`notif-item ${!n.read ? 'unread' : ''}`}
+                      onClick={() => {
+                        if (n.postId) navigate(`/profile/${currentUser?.id}`);
+                        setShowNotif(false);
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        {sender.avatar ? (
+                          <img
+                            src={sender.avatar}
+                            alt=""
+                            className="avatar avatar-md"
+                          />
+                        ) : (
+                          <div className="avatar-placeholder avatar-md">
+                            {sender.firstName?.[0]}{sender.lastName?.[0]}
+                          </div>
+                        )}
+                        <span className="notif-type-icon">{getNotifIcon(n.type)}</span>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p className="notif-text">
+                          <strong>{sender.fullName || 'Someone'}</strong> {n.message}
+                        </p>
+                        <p className="notif-time" style={{ color: n.read ? 'var(--text-secondary)' : 'var(--primary)' }}>
+                          Just now
+                        </p>
+                      </div>
+                      {!n.read && <span className="notif-unread-dot" />}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <p className="notif-text">{n.messageEn || n.message}</p>
-                      <p className="notif-time" style={{ color: n.read ? 'var(--text-secondary)' : 'var(--primary)' }}>
-                        {n.read ? '2 hours ago' : 'Just now'}
-                      </p>
-                    </div>
-                    {!n.read && <span className="notif-unread-dot" />}
-                  </div>
-                ))}
+                  );
+                })}
+                {notifications.length === 0 && (
+                  <p style={{ padding: '20px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    No new notifications
+                  </p>
+                )}
                 <div className="see-all-btn-wrap">
                   <button className="see-all-btn" onClick={() => { navigate('/notifications'); setShowNotif(false); }}>
                     See all notifications

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { mockUsers } from '../../data/mockData';
+import { usersAPI } from '../../services/api';
 import {
   FiUsers, FiVideo, FiShoppingBag, FiZap, FiClock,
   FiBookmark, FiFileText, FiCalendar, FiRss, FiChevronDown,
@@ -10,9 +10,37 @@ import {
 import './Sidebar.css';
 
 const LeftSidebar = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [acceptedRequests, setAcceptedRequests] = useState({});
+
+  const friendRequests = currentUser?.friendRequests || [];
+
+  const handleConfirm = async (id) => {
+    try {
+      await usersAPI.acceptFriendRequest(id);
+      setAcceptedRequests(prev => ({ ...prev, [id]: true }));
+      setTimeout(() => {
+        const updatedRequests = currentUser.friendRequests.filter(r => (r._id || r.id) !== id);
+        const acceptedFriendObj = currentUser.friendRequests.find(r => (r._id || r.id) === id);
+        const updatedFriends = [...(currentUser.friends || []), acceptedFriendObj || { _id: id }];
+        updateProfile({ friendRequests: updatedRequests, friends: updatedFriends });
+      }, 1500);
+    } catch (err) {
+      console.error('Failed to confirm friend request:', err);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await usersAPI.declineFriendRequest(id);
+      const updatedRequests = currentUser.friendRequests.filter(r => (r._id || r.id) !== id);
+      updateProfile({ friendRequests: updatedRequests });
+    } catch (err) {
+      console.error('Failed to decline friend request:', err);
+    }
+  };
 
   const menuItems = [
     { Icon: FiUsers, label: 'Friends', path: '/friends' },
@@ -27,24 +55,6 @@ const LeftSidebar = () => {
     { Icon: FiRss, label: 'Feeds', path: '/feeds' },
     { Icon: FiZap, label: 'Gaming', path: '/gaming' },
   ];
-
-  const defaultRequests = mockUsers.filter(u =>
-    !currentUser?.friends?.includes(u.id) && u.id !== currentUser?.id
-  ).slice(0, 3);
-
-  const [friendRequests, setFriendRequests] = useState(defaultRequests);
-  const [acceptedRequests, setAcceptedRequests] = useState({});
-
-  const handleConfirm = (id) => {
-    setAcceptedRequests(prev => ({ ...prev, [id]: true }));
-    setTimeout(() => {
-      setFriendRequests(prev => prev.filter(u => u.id !== id));
-    }, 2000);
-  };
-
-  const handleDelete = (id) => {
-    setFriendRequests(prev => prev.filter(u => u.id !== id));
-  };
 
   const visibleItems = isExpanded ? menuItems : menuItems.slice(0, 5);
 
@@ -100,25 +110,36 @@ const LeftSidebar = () => {
             <Link to="/friends" className="sidebar-section-link">See all</Link>
           </div>
           {friendRequests.map(user => {
-            const isAccepted = acceptedRequests[user.id] || false;
+            const userId = user._id || user.id;
+            const isAccepted = acceptedRequests[userId] || false;
             return (
-              <div key={user.id} className="friend-request-item animate-fadeIn">
-                <img
-                  src={user.avatar}
-                  alt={user.fullName}
-                  className="avatar avatar-lg"
-                  onClick={() => navigate(`/profile/${user.id}`)}
-                  style={{ cursor: 'pointer' }}
-                />
+              <div key={userId} className="friend-request-item animate-fadeIn">
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.fullName}
+                    className="avatar avatar-lg"
+                    onClick={() => navigate(`/profile/${userId}`)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                ) : (
+                  <div
+                    className="avatar-placeholder avatar-lg"
+                    onClick={() => navigate(`/profile/${userId}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {user.firstName?.[0]}{user.lastName?.[0]}
+                  </div>
+                )}
                 <div className="friend-request-info">
                   <p
                     className="friend-request-name"
-                    onClick={() => navigate(`/profile/${user.id}`)}
+                    onClick={() => navigate(`/profile/${userId}`)}
                   >
                     {user.fullName}
                   </p>
                   <p className="friend-request-mutual">
-                    {Math.floor(Math.random() * 20) + 2} mutual friends
+                    Friend Request
                   </p>
                   
                   {isAccepted ? (
@@ -129,15 +150,15 @@ const LeftSidebar = () => {
                     <div className="friend-request-actions">
                       <button
                         className="btn btn-primary btn-sm"
-                        onClick={() => handleConfirm(user.id)}
-                        id={`confirm-request-${user.id}`}
+                        onClick={() => handleConfirm(userId)}
+                        id={`confirm-request-${userId}`}
                       >
                         Confirm
                       </button>
                       <button
                         className="btn btn-secondary btn-sm"
-                        onClick={() => handleDelete(user.id)}
-                        id={`delete-request-${user.id}`}
+                        onClick={() => handleDelete(userId)}
+                        id={`delete-request-${userId}`}
                       >
                         Delete
                       </button>

@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { mockUsers } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { FiSearch, FiMoreHorizontal } from 'react-icons/fi';
 import './Sidebar.css';
@@ -7,8 +6,7 @@ import './Sidebar.css';
 const RightSidebar = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const contacts = mockUsers.filter(u => u.id !== currentUser?.id);
-  const birthdayUser = mockUsers.find(u => u.id === '4');
+  const contacts = currentUser?.friends || [];
 
   return (
     <aside className="right-sidebar" id="right-sidebar">
@@ -30,22 +28,6 @@ const RightSidebar = () => {
 
       <div style={{ height: '1px', background: 'var(--border-light)', margin: '12px 0' }} />
 
-      {/* Birthdays */}
-      <div className="sidebar-section">
-        <h3 className="sidebar-section-title" style={{ marginBottom: '10px' }}>Birthdays</h3>
-        <div className="birthday-card">
-          <span style={{ fontSize: '1.4rem' }}>🎂</span>
-          <p style={{ fontSize: '0.87rem', color: 'var(--text-primary)', flex: 1 }}>
-            <span style={{ fontWeight: 700 }}>{birthdayUser?.fullName}</span> has a birthday today.{' '}
-            <span style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }}>
-              Send wishes!
-            </span>
-          </p>
-        </div>
-      </div>
-
-      <div style={{ height: '1px', background: 'var(--border-light)', margin: '12px 0' }} />
-
       {/* Contacts */}
       <div className="sidebar-section">
         <div className="sidebar-section-header">
@@ -57,19 +39,33 @@ const RightSidebar = () => {
         </div>
 
         <div className="contacts-list">
-          {contacts.map((user, i) => (
-            <div
-              key={user.id}
-              className="contact-item"
-              onClick={() => navigate('/messenger')}
-            >
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-                <img src={user.avatar} alt={user.fullName} className="avatar avatar-md" />
-                {i < 3 && <span className="online-dot" />}
+          {contacts.map((user) => {
+            const userId = user._id || user.id;
+            return (
+              <div
+                key={userId}
+                className="contact-item"
+                onClick={() => navigate(`/profile/${userId}`)}
+              >
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.fullName} className="avatar avatar-md" />
+                  ) : (
+                    <div className="avatar-placeholder avatar-md">
+                      {user.firstName?.[0]}{user.lastName?.[0]}
+                    </div>
+                  )}
+                  <span className="online-dot" />
+                </div>
+                <span className="contact-name">{user.fullName}</span>
               </div>
-              <span className="contact-name">{user.fullName}</span>
-            </div>
-          ))}
+            );
+          })}
+          {contacts.length === 0 && (
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '10px 0' }}>
+              No active contacts. Add friends to chat!
+            </p>
+          )}
         </div>
       </div>
     </aside>

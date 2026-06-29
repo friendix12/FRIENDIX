@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockUsers, formatTime } from '../../data/mockData';
+import { formatTime } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 import {
   FiThumbsUp, FiMessageSquare, FiShare2, FiMoreHorizontal,
@@ -33,7 +33,7 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareCount, setShareCount] = useState(post.shares || 0);
   const reactionTimer = useRef(null);
-  const author = mockUsers.find(u => u.id === post.authorId);
+  const author = post.authorId || {};
 
   const handleReactionHover = () => {
     reactionTimer.current = setTimeout(() => setShowReactions(true), 600);
@@ -260,7 +260,7 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
 
           <div className="comments-list">
             {localComments.map(c => {
-              const cAuthor = mockUsers.find(u => u.id === c.authorId) || currentUser;
+              const cAuthor = c.authorId || {};
               return (
                 <div key={c.id} className="comment-item animate-fadeIn">
                   {cAuthor?.avatar ? (

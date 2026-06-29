@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar/Navbar';
-import { mockUsers } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
+import { usersAPI } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import {
   FiUserCheck, FiUserPlus, FiUsers, FiGift,
-  FiCheck, FiMessageSquare, FiUserMinus, FiTrash2
+  FiCheck, FiMessageSquare, FiUserMinus
 } from 'react-icons/fi';
 import './FriendsPage.css';
 
@@ -16,53 +16,84 @@ const TABS = [
   { id: 'birthdays', label: 'Birthdays', icon: <FiGift size={18} /> }
 ];
 
-const EXTRA_SUGGESTIONS = [
-  { id: 's101', fullName: 'Subir Das', avatar: 'https://i.pravatar.cc/150?img=33' },
-  { id: 's102', fullName: 'Mimi Roy', avatar: 'https://i.pravatar.cc/150?img=47' },
-  { id: 's103', fullName: 'Tanveer Alam', avatar: 'https://i.pravatar.cc/150?img=8' },
-  { id: 's104', fullName: 'Jannat Ara', avatar: 'https://i.pravatar.cc/150?img=5' }
-];
-
 const FriendsPage = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('requests');
-
-  // Initialize data from mock data
-  const defaultRequests = mockUsers.filter(u =>
-    !currentUser?.friends?.includes(u.id) && u.id !== currentUser?.id
-  ).slice(0, 3);
-
-  const defaultFriends = mockUsers.filter(u =>
-    currentUser?.friends?.includes(u.id) || u.id === '3' || u.id === '4' // mock some default friends
-  );
-
-  const [requests, setRequests] = useState(defaultRequests);
-  const [suggestions, setSuggestions] = useState(EXTRA_SUGGESTIONS);
-  const [friends, setFriends] = useState(defaultFriends);
+  const [suggestions, setSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [sentRequests, setSentRequests] = useState({});
   const [confirmedRequests, setConfirmedRequests] = useState({});
 
-  const handleConfirm = (user) => {
-    setConfirmedRequests(prev => ({ ...prev, [user.id]: true }));
-    // Add to friends list
-    setFriends(prev => [...prev, user]);
-    // Remove from request list after animation
-    setTimeout(() => {
-      setRequests(prev => prev.filter(u => u.id !== user.id));
-    }, 1500);
+  const requests = currentUser?.friendRequests || [];
+  const friends = currentUser?.friends || [];
+
+  // Fetch real suggestions from backend
+  useEffect(() => {
+    if (activeTab === 'suggestions') {
+      const fetchSuggestions = async () => {
+        try {
+          setLoadingSuggestions(true);
+          const data = await usersAPI.getSuggestions();
+          setSuggestions(data.users || []);
+        } catch (err) {
+          console.error('Failed to fetch suggestions:', err);
+        } finally {
+          setLoadingSuggestions(false);
+        }
+      };
+      fetchSuggestions();
+    }
+  }, [activeTab]);
+
+  const handleConfirm = async (user) => {
+    const userId = user._id || user.id;
+    try {
+      await usersAPI.acceptFriendRequest(userId);
+      setConfirmedRequests(prev => ({ ...prev, [userId]: true }));
+      
+      setTimeout(() => {
+        const updatedRequests = requests.filter(r => (r._id || r.id) !== userId);
+        const updatedFriends = [...friends, user];
+        updateProfile({ friendRequests: updatedRequests, friends: updatedFriends });
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      alert('রিকোয়েস্ট গ্রহণ করা যায়নি।');
+    }
   };
 
-  const handleDelete = (id) => {
-    setRequests(prev => prev.filter(u => u.id !== id));
+  const handleDelete = async (id) => {
+    try {
+      await usersAPI.declineFriendRequest(id);
+      const updatedRequests = requests.filter(r => (r._id || r.id) !== id);
+      updateProfile({ friendRequests: updatedRequests });
+    } catch (err) {
+      console.error(err);
+      alert('রিকোয়েস্ট বাতিল করা যায়নি।');
+    }
   };
 
-  const handleAddFriend = (id) => {
-    setSentRequests(prev => ({ ...prev, [id]: true }));
+  const handleAddFriend = async (id) => {
+    try {
+      await usersAPI.sendFriendRequest(id);
+      setSentRequests(prev => ({ ...prev, [id]: true }));
+    } catch (err) {
+      console.error(err);
+      alert('রিকোয়েস্ট পাঠানো যায়নি।');
+    }
   };
 
-  const handleUnfriend = (id) => {
-    setFriends(prev => prev.filter(u => u.id !== id));
+  const handleUnfriend = async (id) => {
+    if (!window.confirm('Are you sure you want to unfriend this user?')) return;
+    try {
+      await usersAPI.unfriend(id);
+      const updatedFriends = friends.filter(f => (f._id || f.id) !== id);
+      updateProfile({ friends: updatedFriends });
+    } catch (err) {
+      console.error(err);
+      alert('আনফ্রেন্ড করা যায়নি।');
+    }
   };
 
   return (
@@ -111,13 +142,20 @@ const FriendsPage = () => {
               ) : (
                 <div className="friends-grid">
                   {requests.map(user => {
-                    const isConfirmed = confirmedRequests[user.id] || false;
+                    const userId = user._id || user.id;
+                    const isConfirmed = confirmedRequests[userId] || false;
                     return (
-                      <div key={user.id} className="friend-card animate-fadeIn">
-                        <img src={user.avatar} alt="" className="friend-card-img" onClick={() => navigate(`/profile/${user.id}`)} style={{ cursor: 'pointer' }} />
+                      <div key={userId} className="friend-card animate-fadeIn">
+                        {user.avatar ? (
+                          <img src={user.avatar} alt="" className="friend-card-img" onClick={() => navigate(`/profile/${userId}`)} style={{ cursor: 'pointer' }} />
+                        ) : (
+                          <div className="avatar-placeholder friend-card-img" onClick={() => navigate(`/profile/${userId}`)} style={{ cursor: 'pointer', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', color: 'var(--text-secondary)' }}>
+                            {user.firstName?.[0]}{user.lastName?.[0]}
+                          </div>
+                        )}
                         <div className="friend-card-info">
-                          <p className="friend-card-name" onClick={() => navigate(`/profile/${user.id}`)} style={{ cursor: 'pointer' }}>{user.fullName}</p>
-                          <p className="friend-card-meta">3 mutual friends</p>
+                          <p className="friend-card-name" onClick={() => navigate(`/profile/${userId}`)} style={{ cursor: 'pointer' }}>{user.fullName}</p>
+                          <p className="friend-card-meta">Friend Request</p>
                           <div className="friend-card-actions">
                             {isConfirmed ? (
                               <button className="btn btn-success btn-full btn-sm" disabled style={{ background: 'var(--success-light)', color: 'var(--success)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
@@ -125,8 +163,8 @@ const FriendsPage = () => {
                               </button>
                             ) : (
                               <>
-                                <button className="btn btn-primary btn-full btn-sm" onClick={() => handleConfirm(user)} id={`confirm-btn-${user.id}`}>Confirm</button>
-                                <button className="btn btn-secondary btn-full btn-sm" onClick={() => handleDelete(user.id)} id={`delete-btn-${user.id}`}>Delete</button>
+                                <button className="btn btn-primary btn-full btn-sm" onClick={() => handleConfirm(user)} id={`confirm-btn-${userId}`}>Confirm</button>
+                                <button className="btn btn-secondary btn-full btn-sm" onClick={() => handleDelete(userId)} id={`delete-btn-${userId}`}>Delete</button>
                               </>
                             )}
                           </div>
@@ -143,18 +181,27 @@ const FriendsPage = () => {
           {activeTab === 'suggestions' && (
             <div className="animate-fadeIn">
               <h3 className="friends-section-title">People You May Know</h3>
-              {suggestions.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>No suggestions available.</div>
+              {loadingSuggestions ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading suggestions...</div>
+              ) : suggestions.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>No suggestions available.</div>
               ) : (
                 <div className="friends-grid">
                   {suggestions.map(user => {
-                    const isSent = sentRequests[user.id] || false;
+                    const userId = user._id || user.id;
+                    const isSent = sentRequests[userId] || false;
                     return (
-                      <div key={user.id} className="friend-card animate-fadeIn">
-                        <img src={user.avatar} alt="" className="friend-card-img" onClick={() => navigate(`/profile/${user.id}`)} style={{ cursor: 'pointer' }} />
+                      <div key={userId} className="friend-card animate-fadeIn">
+                        {user.avatar ? (
+                          <img src={user.avatar} alt="" className="friend-card-img" onClick={() => navigate(`/profile/${userId}`)} style={{ cursor: 'pointer' }} />
+                        ) : (
+                          <div className="avatar-placeholder friend-card-img" onClick={() => navigate(`/profile/${userId}`)} style={{ cursor: 'pointer', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', color: 'var(--text-secondary)' }}>
+                            {user.firstName?.[0]}{user.lastName?.[0]}
+                          </div>
+                        )}
                         <div className="friend-card-info">
-                          <p className="friend-card-name" onClick={() => navigate(`/profile/${user.id}`)} style={{ cursor: 'pointer' }}>{user.fullName}</p>
-                          <p className="friend-card-meta">5 mutual friends</p>
+                          <p className="friend-card-name" onClick={() => navigate(`/profile/${userId}`)} style={{ cursor: 'pointer' }}>{user.fullName}</p>
+                          <p className="friend-card-meta">{user.bio || 'Friendix user'}</p>
                           <div className="friend-card-actions">
                             {isSent ? (
                               <button className="btn btn-success btn-full btn-sm" disabled style={{ background: 'var(--primary-light)', color: 'var(--primary)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
@@ -162,10 +209,10 @@ const FriendsPage = () => {
                               </button>
                             ) : (
                               <>
-                                <button className="btn btn-primary btn-full btn-sm" onClick={() => handleAddFriend(user.id)} id={`add-btn-${user.id}`}>
+                                <button className="btn btn-primary btn-full btn-sm" onClick={() => handleAddFriend(userId)} id={`add-btn-${userId}`}>
                                   Add Friend
                                 </button>
-                                <button className="btn btn-secondary btn-full btn-sm" onClick={() => navigate(`/profile/${user.id}`)}>
+                                <button className="btn btn-secondary btn-full btn-sm" onClick={() => navigate(`/profile/${userId}`)}>
                                   View Profile
                                 </button>
                               </>
@@ -185,26 +232,35 @@ const FriendsPage = () => {
             <div className="animate-fadeIn">
               <h3 className="friends-section-title">All Friends</h3>
               {friends.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>You haven't added any friends yet.</div>
+                <div style={{ textAlign: 'center', padding: '40px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>You haven't added any friends yet.</div>
               ) : (
                 <div className="friends-grid">
-                  {friends.map(user => (
-                    <div key={user.id} className="friend-card animate-fadeIn">
-                      <img src={user.avatar} alt="" className="friend-card-img" onClick={() => navigate(`/profile/${user.id}`)} style={{ cursor: 'pointer' }} />
-                      <div className="friend-card-info">
-                        <p className="friend-card-name" onClick={() => navigate(`/profile/${user.id}`)} style={{ cursor: 'pointer' }}>{user.fullName}</p>
-                        <p className="friend-card-meta">Friend</p>
-                        <div className="friend-card-actions">
-                          <button className="btn btn-primary btn-full btn-sm" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }} onClick={() => navigate('/messenger')}>
-                            <FiMessageSquare /> Message
-                          </button>
-                          <button className="btn btn-secondary btn-full btn-sm" onClick={() => handleUnfriend(user.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--danger)' }} id={`unfriend-btn-${user.id}`}>
-                            <FiUserMinus /> Unfriend
-                          </button>
+                  {friends.map(user => {
+                    const userId = user._id || user.id;
+                    return (
+                      <div key={userId} className="friend-card animate-fadeIn">
+                        {user.avatar ? (
+                          <img src={user.avatar} alt="" className="friend-card-img" onClick={() => navigate(`/profile/${userId}`)} style={{ cursor: 'pointer' }} />
+                        ) : (
+                          <div className="avatar-placeholder friend-card-img" onClick={() => navigate(`/profile/${userId}`)} style={{ cursor: 'pointer', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', color: 'var(--text-secondary)' }}>
+                            {user.firstName?.[0]}{user.lastName?.[0]}
+                          </div>
+                        )}
+                        <div className="friend-card-info">
+                          <p className="friend-card-name" onClick={() => navigate(`/profile/${userId}`)} style={{ cursor: 'pointer' }}>{user.fullName}</p>
+                          <p className="friend-card-meta">Friend</p>
+                          <div className="friend-card-actions">
+                            <button className="btn btn-primary btn-full btn-sm" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }} onClick={() => navigate('/messenger')}>
+                              <FiMessageSquare /> Message
+                            </button>
+                            <button className="btn btn-secondary btn-full btn-sm" onClick={() => handleUnfriend(userId)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--danger)' }} id={`unfriend-btn-${userId}`}>
+                              <FiUserMinus /> Unfriend
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -214,15 +270,9 @@ const FriendsPage = () => {
           {activeTab === 'birthdays' && (
             <div className="animate-fadeIn">
               <h3 className="friends-section-title">Today's Birthdays</h3>
-              <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '2rem' }}>🎂</span>
-                  <div>
-                    <h4 style={{ fontWeight: 700, fontSize: '1.05rem', margin: 0 }}>Karim Ahmed has a birthday today!</h4>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>Send him a warm message on his special day.</p>
-                  </div>
-                  <button className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }} onClick={() => navigate('/messenger')}>Send Wish</button>
-                </div>
+              <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border-light)', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                <span style={{ fontSize: '2rem' }}>🎂</span>
+                <p style={{ margin: '8px 0 0 0', fontSize: '0.9rem' }}>No birthdays today.</p>
               </div>
             </div>
           )}
