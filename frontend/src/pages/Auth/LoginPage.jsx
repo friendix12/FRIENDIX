@@ -65,7 +65,7 @@ const LoginPage = () => {
               <div className="form-group">
                 <input
                   id="login-email"
-                  type="email"
+                  type="text"
                   className="auth-input"
                   placeholder="Email address or mobile number"
                   value={email}

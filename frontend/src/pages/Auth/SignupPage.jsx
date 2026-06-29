@@ -122,7 +122,7 @@ const SignupPage = () => {
 
               <div className="form-group">
                 <input
-                  type="email"
+                  type="text"
                   className="auth-input"
                   placeholder="Mobile number or email address"
                   value={form.email}
