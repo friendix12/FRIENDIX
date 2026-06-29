@@ -63,14 +63,39 @@ router.get('/me', require('../middleware/auth'), async (req, res) => {
 // POST /api/auth/reset-password
 router.post('/reset-password', async (req, res) => {
   try {
-    const { email, newPassword } = req.body;
+    const { email, newPassword, oldPassword, firstName, lastName, type } = req.body;
     if (!email || !newPassword) {
       return res.status(400).json({ error: 'ইমেইল এবং নতুন পাসওয়ার্ড দিন।' });
     }
-    const user = await User.findOne({ email: email.toLowerCase() });
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
     if (!user) {
       return res.status(404).json({ error: 'এই ইমেইল দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি।' });
     }
+
+    if (type === 'change') {
+      // Option A: Reset via old password matching
+      if (!oldPassword) {
+        return res.status(400).json({ error: 'আগের পাসওয়ার্ডটি দিন।' });
+      }
+      const isMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ error: 'বর্তমান পাসওয়ার্ডটি ভুল।' });
+      }
+    } else if (type === 'recovery') {
+      // Option B: Reset via Name match (recovery)
+      if (!firstName || !lastName) {
+        return res.status(400).json({ error: 'প্রথম নাম এবং শেষ নাম দিন।' });
+      }
+      const matchFirst = user.firstName.trim().toLowerCase() === firstName.trim().toLowerCase();
+      const matchLast = user.lastName.trim().toLowerCase() === lastName.trim().toLowerCase();
+      if (!matchFirst || !matchLast) {
+        return res.status(400).json({ error: 'প্রদত্ত নামটির সাথে অ্যাকাউন্টের নামের মিল নেই।' });
+      }
+    } else {
+      return res.status(400).json({ error: 'অনুরোধের ধরণ নির্বাচন করুন।' });
+    }
+
     const hashedPassword = await bcrypt.hash(newPassword, 12);
     user.password = hashedPassword;
     await user.save();

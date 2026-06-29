@@ -37,9 +37,9 @@ export const authAPI = {
     body: JSON.stringify({ email, password }),
   }),
 
-  resetPassword: (email, newPassword) => apiFetch('/auth/reset-password', {
+  resetPassword: (payload) => apiFetch('/auth/reset-password', {
     method: 'POST',
-    body: JSON.stringify({ email, newPassword }),
+    body: JSON.stringify(payload),
   }),
 
   getMe: () => apiFetch('/auth/me'),

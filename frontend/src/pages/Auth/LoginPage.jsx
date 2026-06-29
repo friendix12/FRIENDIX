@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { FiEye, FiEyeOff, FiAlertCircle } from 'react-icons/fi';
-import loginHero from '../../assets/login_hero.png';
+import loginHero from '../../assets/login_hero.jpg';
 import './Auth.css';
 
 const LoginPage = () => {
