@@ -4,6 +4,13 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+// Helper to normalize phone number to digits only, matched by last 10 digits
+const normalizePhone = (phone) => {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  return digits.length >= 10 ? digits.slice(-10) : digits;
+};
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
@@ -13,7 +20,10 @@ router.post('/register', async (req, res) => {
     }
 
     const isEmail = email.includes('@');
-    const query = isEmail ? { email: email.toLowerCase() } : { phone: email.trim() };
+    const query = isEmail 
+      ? { email: email.toLowerCase().trim() } 
+      : { phone: normalizePhone(email) };
+
     const existingUser = await User.findOne(query);
     if (existingUser) {
       return res.status(400).json({ error: isEmail ? 'এই ইমেইল দিয়ে ইতিমধ্যে অ্যাকাউন্ট আছে।' : 'এই ফোন নাম্বার দিয়ে ইতিমধ্যে অ্যাকাউন্ট আছে।' });
@@ -31,9 +41,9 @@ router.post('/register', async (req, res) => {
     };
 
     if (isEmail) {
-      userPayload.email = email.toLowerCase();
+      userPayload.email = email.toLowerCase().trim();
     } else {
-      userPayload.phone = email.trim();
+      userPayload.phone = normalizePhone(email);
     }
 
     const user = await User.create(userPayload);
@@ -53,13 +63,11 @@ router.post('/login', async (req, res) => {
     
     const identifier = email.trim();
     const isEmail = identifier.includes('@');
-    
-    const user = await User.findOne({
-      $or: [
-        { email: isEmail ? identifier.toLowerCase() : '' },
-        { phone: identifier }
-      ]
-    }).select('+password')
+    const query = isEmail 
+      ? { email: identifier.toLowerCase() } 
+      : { phone: normalizePhone(identifier) };
+
+    const user = await User.findOne(query).select('+password')
       .populate('friendRequests', 'fullName firstName lastName avatar')
       .populate('friends', 'fullName firstName lastName avatar');
 
@@ -98,12 +106,11 @@ router.post('/reset-password', async (req, res) => {
 
     const identifier = email.trim();
     const isEmail = identifier.includes('@');
-    const user = await User.findOne({
-      $or: [
-        { email: isEmail ? identifier.toLowerCase() : '' },
-        { phone: identifier }
-      ]
-    }).select('+password');
+    const query = isEmail 
+      ? { email: identifier.toLowerCase() } 
+      : { phone: normalizePhone(identifier) };
+
+    const user = await User.findOne(query).select('+password');
 
     if (!user) {
       return res.status(404).json({ error: 'এই ইমেইল বা মোবাইল নাম্বার দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি।' });

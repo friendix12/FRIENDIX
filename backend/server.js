@@ -26,8 +26,16 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ===== DATABASE CONNECTION =====
 const seedAdmin = require('./utils/seedAdmin');
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
+  .then(async () => {
     console.log('✅ MongoDB Atlas Connected!');
+    try {
+      if (mongoose.connection.collections['users']) {
+        await mongoose.connection.collections['users'].dropIndexes().catch(() => {});
+        console.log('🔄 User indexes rebuilt and synced successfully!');
+      }
+    } catch (indexErr) {
+      console.warn('Index sync warning:', indexErr.message);
+    }
     seedAdmin();
   })
   .catch(err => console.error('❌ MongoDB Connection Error:', err));
