@@ -147,4 +147,13 @@ export const adminAPI = {
   }),
 };
 
-export default { authAPI, postsAPI, usersAPI, messagesAPI, notificationsAPI, adminAPI };
+// ===== PRODUCTS (MARKETPLACE) =====
+export const productsAPI = {
+  getAll: () => apiFetch('/products'),
+  create: (productData) => apiFetch('/products', {
+    method: 'POST',
+    body: JSON.stringify(productData),
+  }),
+};
+
+export default { authAPI, postsAPI, usersAPI, messagesAPI, notificationsAPI, adminAPI, productsAPI };

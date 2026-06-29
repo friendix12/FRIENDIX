@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import Navbar from '../../components/Navbar/Navbar';
 import CreateReelModal from '../../components/CreateReel/CreateReelModal';
 import { useAuth } from '../../context/AuthContext';
+import { postsAPI } from '../../services/api';
 import {
   FiTv, FiHeart, FiMessageSquare, FiShare2, FiMoreHorizontal,
   FiVolume2, FiVolumeX, FiChevronUp, FiChevronDown, FiUserPlus,
@@ -9,73 +10,10 @@ import {
 } from 'react-icons/fi';
 import './WatchPage.css';
 
-const DEFAULT_REELS = [
-  {
-    id: 'r1',
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-flowers-under-blue-sky-4523-large.mp4',
-    creator: {
-      name: 'Nature Travel',
-      avatar: 'https://i.pravatar.cc/150?img=12'
-    },
-    description: 'Beautiful yellow flower tree swaying under the blue sky. Nature is absolutely healing! 🌸🍃 #nature #beauty #travel',
-    likes: '12.4K',
-    commentsCount: 84,
-    shares: '110',
-    audio: 'Original Audio - Nature Travel',
-    category: 'Travel',
-    isHdr: true,
-    is4k: true,
-    emojiSticker: '🌸',
-    comments: [
-      { id: 'c1', user: 'Sadia Islam', avatar: 'https://i.pravatar.cc/150?img=25', text: 'This is absolutely gorgeous! 😍' },
-      { id: 'c2', user: 'Rahim Uddin', avatar: 'https://i.pravatar.cc/150?img=12', text: 'Wow, where is this tree located?' }
-    ]
-  },
-  {
-    id: 'r2',
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-nightclub-43019-large.mp4',
-    creator: {
-      name: 'Zara Club Mix',
-      avatar: 'https://i.pravatar.cc/150?img=26'
-    },
-    description: 'Chasing the neon lights tonight. Night club music vibes! ✨🌆 #nightlife #vibes #neon',
-    likes: '45.1K',
-    commentsCount: 245,
-    shares: '312',
-    audio: 'Neon Lights - Nightcore Mix',
-    category: 'Music',
-    isHdr: false,
-    is4k: true,
-    emojiSticker: '✨',
-    comments: [
-      { id: 'c3', user: 'Karim Ahmed', avatar: 'https://i.pravatar.cc/150?img=15', text: 'Stunning music and colors!' }
-    ]
-  },
-  {
-    id: 'r3',
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-pouring-hot-coffee-into-a-cup-42289-large.mp4',
-    creator: {
-      name: 'Cafe Latte',
-      avatar: 'https://i.pravatar.cc/150?img=15'
-    },
-    description: 'Starting the morning with a fresh pour of premium coffee. How do you take your brew? ☕️🌞 #coffee #morning #cafecito',
-    likes: '8.9K',
-    commentsCount: 38,
-    shares: '12',
-    audio: 'Morning Jazz Guitar - Cafe Latte',
-    category: 'Comedy',
-    isHdr: true,
-    is4k: false,
-    emojiSticker: '☕',
-    comments: [
-      { id: 'c4', user: 'Amar Biswas', avatar: 'https://i.pravatar.cc/150?img=11', text: 'Perfect start to the day!' }
-    ]
-  }
-];
-
 const WatchPage = () => {
   const { currentUser } = useAuth();
-  const [reels, setReels] = useState(DEFAULT_REELS);
+  const [reels, setReels] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
   const [likedReels, setLikedReels] = useState({});
@@ -87,11 +25,44 @@ const WatchPage = () => {
 
   const videoRef = useRef(null);
 
-  const activeReel = reels[activeIndex] || DEFAULT_REELS[0];
-  const isLiked = likedReels[activeReel.id] || false;
+  const fetchReels = async () => {
+    try {
+      setLoading(true);
+      const data = await postsAPI.getAll();
+      const allPosts = data.posts || [];
+      // Filter out posts that contain video links
+      const videoPosts = allPosts.filter(p => p.image && p.image.match(/\.(mp4|mov|avi|mkv|webm|3gp)/i));
+      
+      const mappedReels = videoPosts.map(p => ({
+        id: p._id || p.id,
+        videoUrl: p.image,
+        creator: {
+          name: p.authorId?.fullName || 'Friendix User',
+          avatar: p.authorId?.avatar
+        },
+        description: p.content,
+        likes: p.likes || [],
+        comments: p.comments || []
+      }));
+
+      setReels(mappedReels);
+      setActiveIndex(0);
+    } catch (err) {
+      console.error('Failed to fetch video reels:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (videoRef.current) {
+    fetchReels();
+  }, []);
+
+  const activeReel = reels[activeIndex];
+  const isLiked = activeReel && activeReel.likes.includes(currentUser?.id);
+
+  useEffect(() => {
+    if (videoRef.current && activeReel) {
       videoRef.current.load();
       videoRef.current.play().catch(e => console.log('Autoplay blocked:', e));
     }
@@ -104,11 +75,24 @@ const WatchPage = () => {
     }
   };
 
-  const handleLike = () => {
-    setLikedReels(prev => ({
-      ...prev,
-      [activeReel.id]: !prev[activeReel.id]
-    }));
+  const handleLike = async () => {
+    if (!activeReel) return;
+    try {
+      await postsAPI.reactPost(activeReel.id, 'like');
+      // Update locally
+      setReels(prev => prev.map((r, idx) => {
+        if (idx === activeIndex) {
+          const alreadyLiked = r.likes.includes(currentUser?.id);
+          const updatedLikes = alreadyLiked 
+            ? r.likes.filter(id => id !== currentUser?.id)
+            : [...r.likes, currentUser?.id];
+          return { ...r, likes: updatedLikes };
+        }
+        return r;
+      }));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleNext = () => {
@@ -123,43 +107,25 @@ const WatchPage = () => {
     }
   };
 
-  const handleSendComment = (e) => {
+  const handleSendComment = async (e) => {
     e.preventDefault();
-    if (!commentInput.trim()) return;
-    const newComment = {
-      id: `rc_${Date.now()}`,
-      user: currentUser?.fullName || 'Anonymous',
-      avatar: currentUser?.avatar || 'https://i.pravatar.cc/150?img=11',
-      text: commentInput.trim()
-    };
-    
-    setReels(prev => prev.map((r, idx) => {
-      if (idx === activeIndex) {
-        return {
-          ...r,
-          comments: [...(r.comments || []), newComment]
-        };
-      }
-      return r;
-    }));
-    setCommentInput('');
-  };
+    if (!commentInput.trim() || !activeReel) return;
 
-  const handleUploadReel = (newReelData) => {
-    const fullReel = {
-      ...newReelData,
-      creator: {
-        name: currentUser?.fullName || 'Anonymous User',
-        avatar: currentUser?.avatar || 'https://i.pravatar.cc/150?img=11'
-      },
-      likes: '0',
-      commentsCount: 0,
-      shares: '0',
-      comments: []
-    };
-    setReels([fullReel, ...reels]);
-    setActiveIndex(0);
-    setShowCreateModal(false);
+    try {
+      const data = await postsAPI.commentPost(activeReel.id, commentInput.trim());
+      setReels(prev => prev.map((r, idx) => {
+        if (idx === activeIndex) {
+          return {
+            ...r,
+            comments: data.post.comments || []
+          };
+        }
+        return r;
+      }));
+      setCommentInput('');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -172,9 +138,7 @@ const WatchPage = () => {
           <h2 className="reels-title"><FiTv /> Reels</h2>
           <nav className="reels-nav" style={{ marginBottom: '16px' }}>
             <button className="reels-nav-item active">For you</button>
-            <button className="reels-nav-item">Profile</button>
-            <button className="reels-nav-item">Following</button>
-            <button className="reels-nav-item">Saved Reels</button>
+            <button className="reels-nav-item" onClick={fetchReels}>Refresh</button>
           </nav>
           
           <button
@@ -189,164 +153,126 @@ const WatchPage = () => {
 
         {/* Center Video Player */}
         <main className="reels-player-container">
-          <div className="reels-viewport">
-            <div className="reel-video-wrapper">
-              <video
-                ref={videoRef}
-                className={`reel-video ${activeReel.isHdr ? 'hdr-effect' : ''}`}
-                src={activeReel.videoUrl}
-                loop
-                autoPlay
-                muted={isMuted}
-                playsInline
-                onClick={toggleMute}
-              />
-
-              {/* 4K UHD Badge overlay */}
-              {activeReel.is4k && (
-                <span className="badge-4k-uhd">4K UHD</span>
-              )}
-
-              {/* Emoji Sticker overlay */}
-              {activeReel.emojiSticker && (
-                <div className="reel-emoji-sticker animate-pulse">
-                  {activeReel.emojiSticker}
-                </div>
-              )}
-
-              {/* Category Badge */}
-              {activeReel.category && (
-                <span className="badge-reel-category">{activeReel.category}</span>
-              )}
-
-              {/* Mute Overlay Button */}
-              <button className="reel-mute-btn" onClick={toggleMute}>
-                {isMuted ? <FiVolumeX size={18} /> : <FiVolume2 size={18} />}
-              </button>
-
-              {/* Video Details Bottom Overlay */}
-              <div className="reel-overlay-bottom">
-                <div className="reel-creator-row">
-                  <img src={activeReel.creator.avatar} alt="" className="avatar avatar-sm" style={{ border: '2px solid white' }} />
-                  <span className="reel-creator-name">{activeReel.creator.name}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>·</span>
-                  <button className="reel-follow-btn"><FiUserPlus size={12} style={{ marginRight: '4px' }} /> Follow</button>
-                </div>
-                <p className="reel-description">{activeReel.description}</p>
-                <div className="reel-music">
-                  <FiMusic size={14} />
-                  <span>{activeReel.audio}</span>
-                </div>
-              </div>
+          {loading ? (
+            <div style={{ color: 'white', textAlign: 'center', display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+              Loading reels...
             </div>
-
-            {/* Actions Bar (floating beside viewport) */}
-            <div className="reels-actions-bar">
-              <div className="reel-action-item">
-                <button
-                  className={`reel-action-circle ${isLiked ? 'active' : ''}`}
-                  onClick={handleLike}
-                  id={`reel-like-${activeReel.id}`}
-                >
-                  <FiHeart size={20} fill={isLiked ? 'white' : 'transparent'} />
-                </button>
-                <span className="reel-action-count">{isLiked ? 'Liked' : activeReel.likes}</span>
-              </div>
-
-              <div className="reel-action-item">
-                <button
-                  className="reel-action-circle"
-                  onClick={() => setShowComments(!showComments)}
-                  id={`reel-comment-${activeReel.id}`}
-                >
-                  <FiMessageSquare size={20} />
-                </button>
-                <span className="reel-action-count">{(activeReel.comments || []).length}</span>
-              </div>
-
-              <div className="reel-action-item">
-                <button className="reel-action-circle">
-                  <FiShare2 size={20} />
-                </button>
-                <span className="reel-action-count">{activeReel.shares}</span>
-              </div>
-
-              <div className="reel-action-item">
-                <button className="reel-action-circle">
-                  <FiMoreHorizontal size={20} />
-                </button>
-              </div>
+          ) : reels.length === 0 ? (
+            <div style={{ color: 'white', textAlign: 'center', display: 'flex', flexDirection: 'column', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: '3rem' }}>📽️</span>
+              <h3 style={{ marginTop: '16px' }}>No Reels available</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.87rem', marginTop: '4px' }}>Be the first to upload a video reel!</p>
             </div>
-          </div>
-
-          {/* Up/Down Navigation Arrows */}
-          <div className="reels-navigation">
-            <button
-              className="reel-nav-arrow"
-              onClick={handlePrev}
-              disabled={activeIndex === 0}
-              id="reel-prev-btn"
-            >
-              <FiChevronUp size={22} />
-            </button>
-            <button
-              className="reel-nav-arrow"
-              onClick={handleNext}
-              disabled={activeIndex === reels.length - 1}
-              id="reel-next-btn"
-            >
-              <FiChevronDown size={22} />
-            </button>
-          </div>
-
-          {/* Slide-in Comments Drawer */}
-          {showComments && (
-            <div className="reels-comments-drawer animate-slideLeft">
-              <div className="comments-drawer-header">
-                <h3 style={{ fontWeight: 700, margin: 0 }}>Comments</h3>
-                <button className="icon-btn" onClick={() => setShowComments(false)}><FiX size={18} /></button>
-              </div>
-
-              <div className="comments-drawer-list">
-                {(!activeReel.comments || activeReel.comments.length === 0) ? (
-                  <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '24px 0' }}>No comments yet.</p>
-                ) : (
-                  activeReel.comments.map(c => (
-                    <div key={c.id} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                      <img src={c.avatar} alt="" className="avatar avatar-sm" />
-                      <div style={{ background: 'var(--bg-hover)', padding: '8px 12px', borderRadius: '12px', flex: 1 }}>
-                        <p style={{ fontWeight: 700, fontSize: '0.85rem', margin: '0 0 2px 0' }}>{c.user}</p>
-                        <p style={{ fontSize: '0.87rem', margin: 0, color: 'var(--text-primary)' }}>{c.text}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <form onSubmit={handleSendComment} className="comments-drawer-input-row">
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Add a comment..."
-                  value={commentInput}
-                  onChange={e => setCommentInput(e.target.value)}
-                  id="reel-comment-input"
-                  style={{ borderRadius: '20px', padding: '8px 14px' }}
+          ) : (
+            <div className="reels-viewport">
+              <div className="reel-video-wrapper">
+                <video
+                  ref={videoRef}
+                  className="reel-video"
+                  src={activeReel.videoUrl}
+                  loop
+                  autoPlay
+                  muted={isMuted}
+                  playsInline
+                  onClick={toggleMute}
                 />
-                <button type="submit" className="btn btn-primary" style={{ padding: '8px 12px', borderRadius: '50%' }} disabled={!commentInput.trim()}>
-                  <FiSend size={14} />
-                </button>
-              </form>
+
+                <span className="badge-4k-uhd">UHD</span>
+
+                {/* Right controls sidepanel */}
+                <div className="reel-right-controls">
+                  <button className="reel-ctrl-btn" onClick={handleLike} id="like-reel-btn">
+                    <span className="ctrl-icon" style={{ background: isLiked ? 'var(--primary)' : 'rgba(0,0,0,0.6)' }}><FiHeart size={20} color={isLiked ? 'white' : '#ffffff'} /></span>
+                    <span className="ctrl-label">{activeReel.likes.length}</span>
+                  </button>
+                  <button className="reel-ctrl-btn" onClick={() => setShowComments(!showComments)} id="comments-reel-btn">
+                    <span className="ctrl-icon"><FiMessageSquare size={20} /></span>
+                    <span className="ctrl-label">{activeReel.comments.length}</span>
+                  </button>
+                  <button className="reel-ctrl-btn" title="Mute/Unmute" onClick={toggleMute}>
+                    <span className="ctrl-icon">{isMuted ? <FiVolumeX size={20} /> : <FiVolume2 size={20} />}</span>
+                  </button>
+                </div>
+
+                {/* Bottom details Overlay */}
+                <div className="reel-bottom-overlay">
+                  <div className="reel-creator-row">
+                    {activeReel.creator.avatar ? (
+                      <img src={activeReel.creator.avatar} alt="" className="avatar avatar-sm" style={{ border: '2px solid white' }} />
+                    ) : (
+                      <div className="avatar-placeholder avatar-sm" style={{ border: '2px solid white' }}>
+                        {activeReel.creator.name?.[0]}
+                      </div>
+                    )}
+                    <span className="reel-creator-name">{activeReel.creator.name}</span>
+                    <button className="btn btn-primary btn-xs" style={{ display: 'flex', alignItems: 'center', gap: '2px' }}><FiPlus /> Follow</button>
+                  </div>
+                  <p className="reel-description">{activeReel.description}</p>
+                </div>
+
+                {/* Navigation helpers */}
+                <div className="reel-nav-arrows">
+                  <button className="reel-arrow-btn" onClick={handlePrev} disabled={activeIndex === 0}><FiChevronUp size={24} /></button>
+                  <button className="reel-arrow-btn" onClick={handleNext} disabled={activeIndex === reels.length - 1}><FiChevronDown size={24} /></button>
+                </div>
+              </div>
+
+              {/* Comments sidebar */}
+              {showComments && (
+                <div className="reel-comments-sidebar animate-fadeIn">
+                  <div className="comments-sidebar-header">
+                    <h3 style={{ margin: 0, fontWeight: 800 }}>Comments</h3>
+                    <button className="icon-btn" onClick={() => setShowComments(false)}><FiX size={18} /></button>
+                  </div>
+
+                  <div className="comments-sidebar-list">
+                    {activeReel.comments.map(c => {
+                      const cAuthor = c.authorId || {};
+                      const cId = c._id || c.id;
+                      return (
+                        <div key={cId} className="comment-item">
+                          {cAuthor.avatar ? (
+                            <img src={cAuthor.avatar} alt="" className="avatar avatar-sm" />
+                          ) : (
+                            <div className="avatar-placeholder avatar-sm">
+                              {cAuthor.fullName?.[0]}
+                            </div>
+                          )}
+                          <div style={{ flex: 1 }}>
+                            <div className="comment-bubble">
+                              <p className="comment-author">{cAuthor.fullName || 'User'}</p>
+                              <p className="comment-text">{c.content}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {activeReel.comments.length === 0 && (
+                      <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '20px' }}>No comments yet.</p>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleSendComment} className="comments-sidebar-input">
+                    <input
+                      type="text"
+                      placeholder="Add comment..."
+                      value={commentInput}
+                      onChange={e => setCommentInput(e.target.value)}
+                      id="reel-comment-input"
+                    />
+                    <button type="submit" className="icon-btn" disabled={!commentInput.trim()}><FiSend size={16} /></button>
+                  </form>
+                </div>
+              )}
             </div>
           )}
         </main>
       </div>
 
-      {/* Render the Facebook-style Create Reel Wizard */}
       <CreateReelModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onUpload={handleUploadReel}
+        onUpload={fetchReels}
       />
     </div>
   );

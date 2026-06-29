@@ -171,19 +171,7 @@ const LeftSidebar = () => {
         </div>
       )}
 
-      {/* Shortcuts */}
-      <div style={{ height: '1px', background: 'var(--border-light)', margin: '12px 0' }} />
-      <div className="sidebar-section">
-        <h3 className="sidebar-section-title" style={{ marginBottom: '8px' }}>Your shortcuts</h3>
-        {['Forgotten History', 'Tech Bangladesh', 'Travel BD'].map(name => (
-          <div key={name} className="sidebar-nav-item" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
-            <span className="sidebar-nav-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: 700 }}>
-              {name[0]}
-            </span>
-            <span className="sidebar-nav-label">{name}</span>
-          </div>
-        ))}
-      </div>
+
 
       {/* Footer */}
       <div className="sidebar-footer">

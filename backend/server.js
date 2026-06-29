@@ -39,6 +39,7 @@ const postRoutes = require('./routes/posts');
 const messageRoutes = require('./routes/messages');
 const adminRoutes = require('./routes/admin');
 const notifRoutes = require('./routes/notifications');
+const productRoutes = require('./routes/products');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -46,6 +47,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notifRoutes);
+app.use('/api/products', productRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
