@@ -18,6 +18,10 @@ const ProfilePage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [showCreateReel, setShowCreateReel] = useState(false);
+
+  // Uploading overlays states
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
   
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
@@ -34,7 +38,7 @@ const ProfilePage = () => {
     const file = e.target.files[0];
     if (!file) return;
     try {
-      setLoading(true);
+      setAvatarUploading(true);
       const res = await postsAPI.uploadFile(file);
       await updateProfile({ avatar: res.url });
       await fetchProfileData();
@@ -42,7 +46,7 @@ const ProfilePage = () => {
       console.error(err);
       alert('Failed to upload profile picture.');
     } finally {
-      setLoading(false);
+      setAvatarUploading(false);
     }
   };
 
@@ -50,7 +54,7 @@ const ProfilePage = () => {
     const file = e.target.files[0];
     if (!file) return;
     try {
-      setLoading(true);
+      setCoverUploading(true);
       const res = await postsAPI.uploadFile(file);
       await updateProfile({ coverPhoto: res.url });
       await fetchProfileData();
@@ -58,7 +62,7 @@ const ProfilePage = () => {
       console.error(err);
       alert('Failed to upload cover photo.');
     } finally {
-      setLoading(false);
+      setCoverUploading(false);
     }
   };
   
@@ -206,6 +210,14 @@ const ProfilePage = () => {
               alt="Cover"
               className="profile-cover-img"
             />
+            {coverUploading && (
+              <div className="cover-upload-overlay" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', zIndex: 10 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div className="upload-spinner" style={{ margin: '0 auto 8px auto' }} />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Uploading cover...</span>
+                </div>
+              </div>
+            )}
             {isOwner && (
               <>
                 <button className="cover-edit-btn" onClick={handleCoverClick}>
@@ -235,6 +247,11 @@ const ProfilePage = () => {
                 ) : (
                   <div className="avatar-placeholder" style={{ width: '168px', height: '168px', fontSize: '3.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary)', color: 'white', fontWeight: 800 }}>
                     {profileUser?.firstName?.[0]}{profileUser?.lastName?.[0]}
+                  </div>
+                )}
+                {avatarUploading && (
+                  <div className="avatar-upload-overlay" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', zIndex: 10 }}>
+                    <div className="upload-spinner" />
                   </div>
                 )}
                 {isOwner && (

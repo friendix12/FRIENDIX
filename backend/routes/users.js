@@ -119,12 +119,22 @@ router.post('/:id/accept-request', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/users/:id/decline-request — decline friend request
+// DELETE /api/users/:id/decline-request — decline/cancel friend request
 router.delete('/:id/decline-request', auth, async (req, res) => {
   try {
-    await User.findByIdAndUpdate(req.userId, { $pull: { friendRequests: req.params.id } });
-    await User.findByIdAndUpdate(req.params.id, { $pull: { sentRequests: req.userId } });
-    res.json({ message: 'ফ্রেন্ড রিকোয়েস্ট বাতিল করা হয়েছে।' });
+    await User.findByIdAndUpdate(req.userId, { 
+      $pull: { 
+        friendRequests: req.params.id,
+        sentRequests: req.params.id 
+      } 
+    });
+    await User.findByIdAndUpdate(req.params.id, { 
+      $pull: { 
+        friendRequests: req.userId,
+        sentRequests: req.userId 
+      } 
+    });
+    res.json({ message: 'অনুরোধটি বাতিল করা হয়েছে।' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
