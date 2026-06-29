@@ -23,20 +23,42 @@ router.get('/:userId', auth, async (req, res) => {
   }
 });
 
+// GET /api/messages/unread/count — total unread messages
+router.get('/unread/count', auth, async (req, res) => {
+  try {
+    const count = await Message.countDocuments({ receiverId: req.userId, read: false });
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/messages — get all recent conversations
 router.get('/', auth, async (req, res) => {
   try {
     const messages = await Message.find({
       $or: [{ senderId: req.userId }, { receiverId: req.userId }],
     }).sort({ createdAt: -1 }).populate('senderId receiverId', 'fullName avatar');
-    // Get unique conversations
-    const seen = new Set();
-    const conversations = messages.filter(m => {
-      const key = [m.senderId._id, m.receiverId._id].sort().join('-');
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+
+    const conversationMap = new Map();
+    for (const m of messages) {
+      const otherUser = m.senderId._id.toString() === req.userId ? m.receiverId : m.senderId;
+      const otherId = otherUser._id.toString();
+      if (!conversationMap.has(otherId)) {
+        conversationMap.set(otherId, {
+          user: otherUser,
+          lastMessage: m.content || (m.image ? '📷 Photo' : ''),
+          lastMessageTime: m.createdAt,
+          unreadCount: 0,
+        });
+      }
+      if (m.receiverId._id.toString() === req.userId && !m.read) {
+        const entry = conversationMap.get(otherId);
+        entry.unreadCount++;
+      }
+    }
+
+    const conversations = Array.from(conversationMap.values());
     res.json({ conversations });
   } catch (err) {
     res.status(500).json({ error: err.message });

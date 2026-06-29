@@ -170,6 +170,8 @@ export const messagesAPI = {
   deleteMessage: (msgId) => apiFetch(`/messages/${msgId}`, {
     method: 'DELETE',
   }),
+
+  getUnreadCount: () => apiFetch('/messages/unread/count'),
 };
 
 // ===== NOTIFICATIONS =====

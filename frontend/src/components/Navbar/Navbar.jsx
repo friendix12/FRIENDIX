@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { usersAPI, notificationsAPI } from '../../services/api';
+import { usersAPI, notificationsAPI, messagesAPI } from '../../services/api';
 import {
   FiHome, FiVideo, FiShoppingBag, FiUsers, FiZap,
   FiBell, FiMessageSquare, FiSearch, FiX, FiSettings,
@@ -22,6 +22,8 @@ const Navbar = ({ activePage = 'home' }) => {
   const [showMessengerDrop, setShowMessengerDrop] = useState(false);
   const [activeSubMenu, setActiveSubMenu] = useState(null); // 'settings', 'help', or null
   const [notifications, setNotifications] = useState([]);
+  const [conversations, setConversations] = useState([]);
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
 
   const searchRef = useRef(null);
   const notifRef = useRef(null);
@@ -34,6 +36,12 @@ const Navbar = ({ activePage = 'home' }) => {
     if (currentUser) {
       notificationsAPI.getAll()
         .then(data => setNotifications(data.notifications || []))
+        .catch(err => console.error(err));
+      messagesAPI.getConversations()
+        .then(data => setConversations(data.conversations || []))
+        .catch(err => console.error(err));
+      messagesAPI.getUnreadCount()
+        .then(data => setUnreadMsgCount(data.count || 0))
         .catch(err => console.error(err));
     }
   }, [currentUser]);
@@ -169,6 +177,9 @@ const Navbar = ({ activePage = 'home' }) => {
               data-tooltip="Messenger"
             >
               <FiMessageSquare size={20} />
+              {unreadMsgCount > 0 && (
+                <span className="badge nav-badge">{unreadMsgCount}</span>
+              )}
             </button>
             {showMessengerDrop && (
               <div className="navbar-dropdown animate-fadeIn" style={{ width: '360px' }}>
@@ -176,20 +187,47 @@ const Navbar = ({ activePage = 'home' }) => {
                   <h3>Messenger</h3>
                   <button className="icon-btn" onClick={() => navigate('/messenger')}>See All</button>
                 </div>
-                {mockUsers.filter(u => u.id !== currentUser?.id).slice(0, 4).map((user, i) => (
-                  <div key={user.id} className="notif-item" onClick={() => { navigate('/messenger'); setShowMessengerDrop(false); }}>
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <img src={user.avatar} alt={user.fullName} className="avatar avatar-md" />
-                      {i < 3 && <span className="online-dot" />}
+                {conversations.slice(0, 5).map((conv) => {
+                  const user = conv.user;
+                  const userId = user._id || user.id;
+                  return (
+                    <div
+                      key={userId}
+                      className={`notif-item ${conv.unreadCount > 0 ? 'unread' : ''}`}
+                      onClick={() => { navigate('/messenger'); setShowMessengerDrop(false); }}
+                    >
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        {user.avatar ? (
+                          <img src={user.avatar} alt="" className="avatar avatar-md" />
+                        ) : (
+                          <div className="avatar-placeholder avatar-md">
+                            {user.firstName?.[0]}{user.lastName?.[0]}
+                          </div>
+                        )}
+                        <span className="online-dot" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p className="notif-name" style={{ fontWeight: conv.unreadCount > 0 ? 700 : 500 }}>{user.fullName}</p>
+                        <p className="notif-time" style={{
+                          color: conv.unreadCount > 0 ? 'var(--primary)' : 'var(--text-secondary)',
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                        }}>
+                          {conv.lastMessage || 'Start chatting'}
+                        </p>
+                      </div>
+                      {conv.unreadCount > 0 && (
+                        <span className="badge" style={{ minWidth: '20px', height: '20px', fontSize: '0.7rem', background: 'var(--primary)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {conv.unreadCount}
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <p className="notif-name">{user.fullName}</p>
-                      <p className="notif-time" style={{ color: i < 3 ? 'var(--online)' : 'var(--text-secondary)' }}>
-                        {i < 3 ? 'Active now' : `${i + 1}h ago`}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
+                {conversations.length === 0 && (
+                  <p style={{ padding: '20px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    No conversations yet
+                  </p>
+                )}
                 <div className="see-all-btn-wrap">
                   <button className="see-all-btn" onClick={() => { navigate('/messenger'); setShowMessengerDrop(false); }}>
                     Open Messenger
