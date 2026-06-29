@@ -1,8 +1,37 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const upload = multer({ limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB limit for video/reels
 const auth = require('../middleware/auth');
 const Post = require('../models/Post');
 const User = require('../models/User');
+const { uploadToCloudinary } = require('../utils/cloudinaryUpload');
+const { uploadToTelegram } = require('../utils/telegramUpload');
+
+// POST /api/posts/upload — upload file (image or video)
+router.post('/upload', auth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'ফাইল আপলোড করুন।' });
+    
+    let uploadResult;
+    if (process.env.STORAGE_PROVIDER === 'telegram') {
+      uploadResult = await uploadToTelegram(
+        req.file.buffer, 
+        req.file.originalname, 
+        req.file.mimetype
+      );
+    } else {
+      uploadResult = await uploadToCloudinary(
+        req.file.buffer, 
+        req.file.mimetype.startsWith('video') ? 'friendix/videos' : 'friendix/posts'
+      );
+    }
+    
+    res.json({ url: uploadResult.url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // GET /api/posts/feed — get news feed posts
 router.get('/feed', auth, async (req, res) => {

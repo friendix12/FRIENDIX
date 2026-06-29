@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { FiImage, FiSmile, FiMapPin, FiTag, FiVideo, FiX } from 'react-icons/fi';
+import { postsAPI } from '../../services/api';
 import './CreatePost.css';
 
 const FEELINGS = ['😊 Happy', '😢 Sad', '😍 In Love', '😎 Feeling Great', '🎉 Celebrating', '😤 Angry', '😴 Tired', '🙏 Grateful'];
@@ -26,6 +27,7 @@ const CreatePost = ({ onPost }) => {
   const [showFeelings, setShowFeelings] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const fileRef = useRef(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -36,26 +38,37 @@ const CreatePost = ({ onPost }) => {
     }
   };
 
-  const handlePost = () => {
-    if (!text.trim() && !imagePreview) return;
-    const newPost = {
-      id: `p${Date.now()}`,
-      authorId: currentUser.id,
-      content: text.trim(),
-      image: imagePreview,
-      bgColor: imagePreview ? null : bgColor,
-      feeling: feeling || null,
-      createdAt: new Date().toISOString(),
-      likes: [],
-      reactions: { like: 0, love: 0, haha: 0, wow: 0, sad: 0, angry: 0 },
-      comments: [],
-      shares: 0,
-      privacy: 'public',
-    };
-    onPost?.(newPost);
-    setText(''); setImage(null); setImagePreview(null);
-    setBgColor(null); setFeeling(''); setOpen(false);
-    setShowFeelings(false); setShowBgPicker(false);
+  const handlePost = async () => {
+    if (!text.trim() && !image) return;
+    
+    try {
+      setSubmitting(true);
+      let uploadedUrl = null;
+      if (image) {
+        const uploadRes = await postsAPI.uploadFile(image);
+        uploadedUrl = uploadRes.url;
+      }
+
+      const res = await postsAPI.createPost({
+        content: text.trim(),
+        image: uploadedUrl,
+        bgColor: uploadedUrl ? null : bgColor,
+        feeling: feeling || null,
+        privacy: 'public'
+      });
+
+      if (res.post) {
+        onPost?.(res.post);
+        setText(''); setImage(null); setImagePreview(null);
+        setBgColor(null); setFeeling(''); setOpen(false);
+        setShowFeelings(false); setShowBgPicker(false);
+      }
+    } catch (err) {
+      console.error('Failed to create post:', err);
+      alert(err.message || 'পোস্ট ক্রিয়েট করা যায়নি।');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -204,10 +217,10 @@ const CreatePost = ({ onPost }) => {
                 id="submit-post-btn"
                 className="btn btn-primary btn-full"
                 style={{ padding: '12px', fontSize: '1rem', borderRadius: '8px', marginTop: '8px' }}
-                disabled={!text.trim() && !imagePreview}
+                disabled={submitting || (!text.trim() && !image)}
                 onClick={handlePost}
               >
-                Post
+                {submitting ? 'Posting...' : 'Post'}
               </button>
             </div>
           </div>

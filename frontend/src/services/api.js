@@ -11,13 +11,18 @@ const getToken = () => localStorage.getItem('friendix_token');
 // Generic fetch helper
 const apiFetch = async (endpoint, options = {}) => {
   const token = getToken();
+  const headers = {
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...options.headers,
+  };
+
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const config = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
     ...options,
+    headers,
   };
   const res = await fetch(`${BASE_URL}${endpoint}`, config);
   const data = await res.json();
@@ -50,6 +55,15 @@ export const postsAPI = {
   getFeed: () => apiFetch('/posts/feed'),
 
   getUserPosts: (userId) => apiFetch(`/posts/user/${userId}`),
+
+  uploadFile: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiFetch('/posts/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  },
 
   createPost: (postData) => apiFetch('/posts', {
     method: 'POST',
