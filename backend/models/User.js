@@ -15,7 +15,7 @@ const UserSchema = new mongoose.Schema({
   education: { type: String, default: '' },
   relationship: { type: String, default: '' },
   dob: { type: String, default: '' },
-  gender: { type: String, enum: ['পুরুষ', 'মহিলা', 'কাস্টম', ''], default: '' },
+  gender: { type: String, enum: ['পুরুষ', 'মহিলা', 'কাস্টম', 'Male', 'Female', 'Custom', ''], default: '' },
   friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   sentRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
