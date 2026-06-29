@@ -13,6 +13,7 @@ router.get('/search', auth, async (req, res) => {
       $or: [
         { fullName: { $regex: q, $options: 'i' } },
         { email: { $regex: q, $options: 'i' } },
+        { phone: { $regex: q, $options: 'i' } },
       ],
       _id: { $ne: req.userId },
     }).select('-password').limit(20);
