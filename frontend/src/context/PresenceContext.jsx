@@ -27,14 +27,21 @@ export const PresenceProvider = ({ children }) => {
     return () => clearInterval(intervalRef.current);
   }, [currentUser]);
 
-  // Fetch online status for tracked users
+  // Fetch online status for tracked users — REPLACES values for queried IDs so offline users get false
   const fetchOnlineStatus = useCallback(async (ids) => {
     if (!ids || ids.length === 0) return;
     const uniqueIds = [...new Set(ids.map(String))];
     try {
       const data = await presenceAPI.getOnline(uniqueIds);
       if (data.online) {
-        setOnlineMap(prev => ({ ...prev, ...data.online }));
+        // Replace ONLY the queried IDs so previously-online-now-offline users get false
+        setOnlineMap(prev => {
+          const updated = { ...prev };
+          uniqueIds.forEach(id => {
+            updated[id] = !!data.online[id]; // always set, even if false
+          });
+          return updated;
+        });
       }
     } catch (err) {
       // silent
@@ -65,7 +72,10 @@ export const PresenceProvider = ({ children }) => {
   }, [fetchOnlineStatus]);
 
   const isOnline = useCallback((userId) => {
-    return !!onlineMap[String(userId)];
+    if (!userId) return false;
+    // Handle MongoDB ObjectId objects safely
+    const id = typeof userId === 'object' ? (userId._id || userId.id || userId).toString() : String(userId);
+    return !!onlineMap[id];
   }, [onlineMap]);
 
   return (
