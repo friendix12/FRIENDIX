@@ -42,7 +42,14 @@ const uploadToCloudinary = async (fileBuffer, folder = 'friendix/posts') => {
 
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
-      { folder, resource_type: 'auto' },
+      { 
+        folder, 
+        resource_type: 'auto',
+        // Auto-optimize quality and convert to compressed formats (like WebP/MP4)
+        transformation: [
+          { quality: 'auto', fetch_format: 'auto' }
+        ]
+      },
       (error, result) => {
         if (error) reject(error);
         else resolve({ url: result.secure_url, publicId: result.public_id });
