@@ -456,7 +456,7 @@
   .pro-content-stats { display: none; }
 }
 
-/* ─── Compat with old classes used elsewhere ─── */
+/* ─── Compat ─── */
 .dashboard-wrapper, .pro-dashboard-wrapper {
   max-width: 980px; margin: 0 auto;
   padding: calc(var(--navbar-height) + 20px) 16px 80px;
@@ -464,4 +464,132 @@
 .dashboard-loading, .pro-loading {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   min-height: 60vh; gap: 14px; color: var(--text-secondary);
+}
+
+/* ─── Active nav states ─── */
+.pro-fb-nav-item.nav-active {
+  background: var(--bg-hover);
+  color: var(--primary);
+  border-left: 3px solid var(--primary);
+  padding-left: 13px;
+}
+.pro-fb-nav-group.nav-group-active { color: var(--primary); }
+.pro-fb-nav-child.child-active {
+  background: #E7F3FF;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* ─── Big stat row (for Reach / Followers / etc pages) ─── */
+.pro-big-stat-row {
+  display: flex; gap: 0;
+  border: 1.5px solid var(--border-light); border-radius: 10px;
+  overflow: hidden; margin-bottom: 18px; flex-wrap: wrap;
+}
+.pro-big-stat {
+  flex: 1; min-width: 100px;
+  padding: 18px 20px;
+  border-right: 1px solid var(--border-light);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.pro-big-stat:last-child { border-right: none; }
+.pro-big-stat-val {
+  font-size: 1.8rem; font-weight: 900; color: var(--text-primary); margin: 0;
+  line-height: 1;
+}
+.pro-big-stat-lbl {
+  font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; margin: 0;
+}
+
+/* ─── Stats summary grid (Insights Overview) ─── */
+.pro-stats-summary-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.pro-summary-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 14px;
+  border: 1.5px solid var(--border-light); border-radius: 10px;
+  background: var(--bg-card); transition: var(--transition);
+  position: relative;
+}
+.pro-summary-card:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+.pro-summary-icon {
+  width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.pro-summary-value { font-size: 1.3rem; font-weight: 900; margin: 0; line-height: 1.1; }
+.pro-summary-label { font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; margin: 3px 0 0; }
+
+/* ─── Engagement rows (comments list etc) ─── */
+.pro-engage-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; margin-bottom: 8px;
+  border: 1.5px solid var(--border-light); border-radius: 8px;
+  transition: var(--transition);
+}
+.pro-engage-row:hover { border-color: var(--primary); background: var(--bg-hover); }
+.pro-engage-row-rank {
+  font-size: 0.78rem; font-weight: 800; color: var(--primary);
+  min-width: 28px;
+}
+.pro-engage-row-thumb {
+  width: 44px; height: 44px; border-radius: 6px; flex-shrink: 0;
+  background: var(--bg-hover); display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.pro-engage-row-text {
+  flex: 1; font-size: 0.82rem; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin: 0;
+}
+.pro-engage-row-stats {
+  display: flex; gap: 12px; font-size: 0.75rem;
+  color: var(--text-secondary); font-weight: 600; flex-shrink: 0;
+}
+.pro-engage-row-stats span { display: flex; align-items: center; gap: 4px; }
+
+/* ─── Monetisation grid ─── */
+.pro-mono-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 14px; margin-bottom: 16px;
+}
+.pro-mono-card {
+  padding: 18px 16px;
+  border: 1.5px solid var(--border-light); border-radius: 12px;
+  display: flex; flex-direction: column;
+  transition: var(--transition); cursor: pointer;
+}
+.pro-mono-card:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+
+/* ─── All Tools grid ─── */
+.pro-tools-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.pro-tool-card {
+  padding: 18px 14px;
+  border: 1.5px solid var(--border-light); border-radius: 12px;
+  cursor: pointer; text-align: center;
+  transition: var(--transition);
+  display: flex; flex-direction: column; align-items: center;
+}
+.pro-tool-card:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
+.pro-tool-card-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 10px;
+}
+.pro-tool-card-label { font-size: 0.85rem; font-weight: 700; margin: 0 0 4px; color: var(--text-primary); }
+.pro-tool-card-desc  { font-size: 0.72rem; color: var(--text-secondary); margin: 0; }
+
+/* ─── Audience demo placeholder ─── */
+.pro-audience-demo { margin-top: 4px; }
+
+@media (max-width: 768px) {
+  .pro-mono-grid { grid-template-columns: 1fr; }
+  .pro-big-stat-row { flex-direction: column; }
+  .pro-big-stat { border-right: none; border-bottom: 1px solid var(--border-light); }
+  .pro-big-stat:last-child { border-bottom: none; }
+  .pro-tools-grid { grid-template-columns: repeat(2, 1fr); }
 }
