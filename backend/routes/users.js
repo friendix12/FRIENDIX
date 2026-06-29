@@ -41,7 +41,7 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
       .select('-password')
-      .populate('friends', 'fullName avatar');
+      .populate('friends', 'fullName firstName lastName avatar');
     if (!user) return res.status(404).json({ error: 'ব্যবহারকারী পাওয়া যায়নি।' });
     res.json({ user });
   } catch (err) {

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { postsAPI } from '../../services/api';
+import { postsAPI, storiesAPI, usersAPI } from '../../services/api';
 import { FiPlus, FiX, FiChevronLeft, FiChevronRight, FiMusic, FiEye, FiImage, FiType } from 'react-icons/fi';
 import './Stories.css';
 
@@ -19,10 +19,8 @@ const Stories = () => {
   const { currentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [localStories, setLocalStories] = useState(() => {
-    const saved = localStorage.getItem('friendix_local_stories');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [localStories, setLocalStories] = useState([]);
+  const [storiesLoading, setStoriesLoading] = useState(false);
   const [activeStory, setActiveStory] = useState(null);
   const [progress, setProgress] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -49,8 +47,35 @@ const Stories = () => {
   }, [location.state, activeStories]);
 
   useEffect(() => {
-    localStorage.setItem('friendix_local_stories', JSON.stringify(localStories));
-  }, [localStories]);
+    const fetchDBStories = async () => {
+      try {
+        setStoriesLoading(true);
+        const res = await storiesAPI.getAll();
+        if (res && res.stories) {
+          const normalized = res.stories.map(s => ({
+            id: s._id || s.id,
+            authorId: s.authorId?._id || s.authorId,
+            authorName: s.authorId?.fullName || s.authorName,
+            authorAvatar: s.authorId?.avatar || s.authorAvatar,
+            image: s.image,
+            text: s.text,
+            filter: s.filter,
+            musicUrl: s.musicUrl,
+            musicLabel: s.musicLabel,
+            bgColor: s.bgColor,
+            viewers: s.viewers || [],
+            createdAt: s.createdAt
+          }));
+          setLocalStories(normalized);
+        }
+      } catch (err) {
+        console.error('Failed to fetch stories from DB:', err);
+      } finally {
+        setStoriesLoading(false);
+      }
+    };
+    fetchDBStories();
+  }, []);
 
   // Dynamic profile lookup cache to resolve missing or outdated story avatars dynamically
   const [authorDetails, setAuthorDetails] = useState({});
@@ -167,22 +192,34 @@ const Stories = () => {
 
       const selectedMusic = MUSIC_TRACKS.find(t => t.id === storyForm.musicTrackId);
 
-      const newStory = {
-        id: `s_${Date.now()}`,
-        authorId: currentUser?.id,
-        authorName: currentUser?.fullName,
-        authorAvatar: currentUser?.avatar,
+      const storyPayload = {
         image: imageUrl,
         text: storyForm.text,
         filter: storyForm.filter,
         musicUrl: selectedMusic?.url || '',
         musicLabel: selectedMusic?.id !== 'none' ? selectedMusic?.label : '',
-        bgColor: storyForm.bgColor,
-        viewers: [],
-        createdAt: new Date().toISOString()
+        bgColor: storyForm.bgColor
       };
 
-      setLocalStories([newStory, ...localStories]);
+      const res = await storiesAPI.create(storyPayload);
+      if (res && res.story) {
+        const s = res.story;
+        const newStory = {
+          id: s._id || s.id,
+          authorId: currentUser?.id,
+          authorName: currentUser?.fullName,
+          authorAvatar: currentUser?.avatar,
+          image: s.image,
+          text: s.text,
+          filter: s.filter,
+          musicUrl: s.musicUrl,
+          musicLabel: s.musicLabel,
+          bgColor: s.bgColor,
+          viewers: s.viewers || [],
+          createdAt: s.createdAt
+        };
+        setLocalStories([newStory, ...localStories]);
+      }
       setShowCreateModal(false);
       
       // Reset form

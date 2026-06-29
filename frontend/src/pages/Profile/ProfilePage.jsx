@@ -76,12 +76,8 @@ const ProfilePage = () => {
   const fetchProfileData = async () => {
     try {
       setLoading(true);
-      if (targetId === currentUser?.id || targetId === currentUser?._id) {
-        setProfileUser(currentUser);
-      } else {
-        const res = await usersAPI.getProfile(targetId);
-        setProfileUser(res.user);
-      }
+      const res = await usersAPI.getProfile(targetId);
+      setProfileUser(res.user);
 
       const postsRes = await postsAPI.getUserPosts(targetId);
       setUserPosts(postsRes.posts || []);

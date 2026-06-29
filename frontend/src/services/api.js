@@ -222,4 +222,16 @@ export const groupsAPI = {
   }),
 };
 
-export default { authAPI, postsAPI, usersAPI, messagesAPI, notificationsAPI, adminAPI, productsAPI, groupsAPI };
+// ===== STORIES =====
+export const storiesAPI = {
+  getAll: () => apiFetch('/stories'),
+  create: (storyData) => apiFetch('/stories', {
+    method: 'POST',
+    body: JSON.stringify(storyData),
+  }),
+  viewStory: (storyId) => apiFetch(`/stories/${storyId}/view`, {
+    method: 'POST',
+  }),
+};
+
+export default { authAPI, postsAPI, usersAPI, messagesAPI, notificationsAPI, adminAPI, productsAPI, groupsAPI, storiesAPI };
