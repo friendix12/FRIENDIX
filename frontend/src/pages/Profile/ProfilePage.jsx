@@ -12,7 +12,7 @@ const TABS = ['Posts', 'About', 'Friends', 'Photos', 'Reels'];
 
 const ProfilePage = () => {
   const { userId } = useParams();
-  const { currentUser, updateProfile } = useAuth();
+  const { currentUser, updateProfile, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Posts');
   const [showEditModal, setShowEditModal] = useState(false);
@@ -95,9 +95,51 @@ const ProfilePage = () => {
   }, [userId, currentUser]);
 
   const isOwner = profileUser?._id === currentUser?._id || profileUser?.id === currentUser?.id;
-  const isFriend = currentUser?.friends?.some(f => (f._id || f) === (profileUser?._id || profileUser?.id));
+  
+  // Resolve friendship relationship states dynamically
+  const isFriend = (currentUser?.friends || []).some(f => (f._id || f) === targetId) || (profileUser?.friends || []).some(f => (f._id || f) === (currentUser?.id || currentUser?._id));
+  const hasSentRequest = (currentUser?.sentRequests || []).some(id => id.toString() === targetId.toString()) || (profileUser?.friendRequests || []).some(id => id.toString() === (currentUser?.id || currentUser?._id)?.toString());
+  const hasReceivedRequest = (currentUser?.friendRequests || []).some(id => id.toString() === targetId.toString());
+
+  // Check if profile user has active 24h story
+  const [hasActiveStory, setHasActiveStory] = useState(false);
+
+  useEffect(() => {
+    const savedStories = localStorage.getItem('friendix_local_stories');
+    const storiesList = savedStories ? JSON.parse(savedStories) : [];
+    const activeStoryExists = storiesList.some(s => {
+      const isAuthor = s.authorId?.toString() === targetId?.toString();
+      const isFresh = (Date.now() - new Date(s.createdAt).getTime()) < 24 * 60 * 60 * 1000;
+      return isAuthor && isFresh;
+    });
+    setHasActiveStory(activeStoryExists);
+  }, [targetId]);
+
   const userPhotos = userPosts.filter(p => p.image && !p.image.match(/\.(mp4|mov|avi|mkv|webm|3gp)/i));
   const profileReels = userPosts.filter(p => p.image && p.image.match(/\.(mp4|mov|avi|mkv|webm|3gp)/i));
+
+  const handleFriendAction = async (action) => {
+    try {
+      if (action === 'send') {
+        await usersAPI.sendFriendRequest(targetId);
+      } else if (action === 'accept') {
+        await usersAPI.acceptFriendRequest(targetId);
+      } else if (action === 'decline' || action === 'cancel') {
+        await usersAPI.declineFriendRequest(targetId);
+      } else if (action === 'unfriend') {
+        if (window.confirm('আপনি কি এই বন্ধুটিকে বাদ দিতে চান?')) {
+          await usersAPI.unfriend(targetId);
+        } else {
+          return;
+        }
+      }
+      await refreshUser();
+      await fetchProfileData();
+    } catch (err) {
+      console.error(err);
+      alert('বন্ধুত্বের অনুরোধ প্রসেস করা যায়নি।');
+    }
+  };
 
   const handleEditOpen = () => {
     setEditForm({
@@ -183,7 +225,11 @@ const ProfilePage = () => {
           {/* Profile Info Bar */}
           <div className="profile-info-bar">
             <div className="profile-avatar-section">
-              <div className="profile-avatar-wrap">
+              <div 
+                className={`profile-avatar-wrap ${hasActiveStory ? 'has-story' : ''}`}
+                style={hasActiveStory ? { cursor: 'pointer' } : {}}
+                onClick={() => hasActiveStory ? navigate('/', { state: { openStoryForUser: targetId } }) : null}
+              >
                 {profileUser?.avatar ? (
                   <img src={profileUser.avatar} alt={profileUser?.fullName} className="profile-avatar" />
                 ) : (
@@ -252,11 +298,18 @@ const ProfilePage = () => {
                 ) : (
                   <>
                     {isFriend ? (
-                      <button className="btn btn-secondary">✓ Friends</button>
+                      <button className="btn btn-secondary" onClick={() => handleFriendAction('unfriend')}>✓ Friends</button>
+                    ) : hasSentRequest ? (
+                      <button className="btn btn-secondary" onClick={() => handleFriendAction('cancel')}>Cancel Request</button>
+                    ) : hasReceivedRequest ? (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn btn-primary" onClick={() => handleFriendAction('accept')}>Accept</button>
+                        <button className="btn btn-secondary" onClick={() => handleFriendAction('decline')}>Decline</button>
+                      </div>
                     ) : (
-                      <button className="btn btn-primary">Add Friend</button>
+                      <button className="btn btn-primary" onClick={() => handleFriendAction('send')}>Add Friend</button>
                     )}
-                    <button className="btn btn-secondary" onClick={() => navigate('/messenger')}>
+                    <button className="btn btn-secondary" onClick={() => navigate(`/messenger?userId=${targetId}`)}>
                       <FiMessageSquare style={{ marginRight: '6px' }} /> Message
                     </button>
                     <button className="btn btn-secondary"><FiMoreHorizontal /></button>

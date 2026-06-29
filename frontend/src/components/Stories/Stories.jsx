@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { postsAPI } from '../../services/api';
 import { FiPlus, FiX, FiChevronLeft, FiChevronRight, FiMusic, FiEye, FiImage, FiType } from 'react-icons/fi';
@@ -16,6 +17,8 @@ const MUSIC_TRACKS = [
 
 const Stories = () => {
   const { currentUser } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [localStories, setLocalStories] = useState(() => {
     const saved = localStorage.getItem('friendix_local_stories');
     return saved ? JSON.parse(saved) : [];
@@ -33,8 +36,53 @@ const Stories = () => {
     return (Date.now() - createdTime) < twentyFourHours;
   });
 
+  // Automatically open story if navigated from profile ring click
+  useEffect(() => {
+    if (location.state?.openStoryForUser && activeStories.length > 0) {
+      const targetUserId = location.state.openStoryForUser;
+      const targetStory = activeStories.find(s => s.authorId?.toString() === targetUserId.toString());
+      if (targetStory) {
+        openStory(targetStory);
+      }
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, activeStories]);
+
   useEffect(() => {
     localStorage.setItem('friendix_local_stories', JSON.stringify(localStories));
+  }, [localStories]);
+
+  // Dynamic profile lookup cache to resolve missing or outdated story avatars dynamically
+  const [authorDetails, setAuthorDetails] = useState({});
+
+  useEffect(() => {
+    const fetchAvatars = async () => {
+      const uniqueAuthorIds = [...new Set(activeStories.map(s => s.authorId).filter(Boolean))];
+      const detailsMap = { ...authorDetails };
+      let changed = false;
+      for (const authId of uniqueAuthorIds) {
+        if (!detailsMap[authId]) {
+          try {
+            const res = await usersAPI.getProfile(authId);
+            if (res && res.user) {
+              detailsMap[authId] = {
+                avatar: res.user.avatar || '',
+                fullName: res.user.fullName || ''
+              };
+              changed = true;
+            }
+          } catch (e) {
+            console.warn('Failed to load avatar for author:', authId);
+          }
+        }
+      }
+      if (changed) {
+        setAuthorDetails(detailsMap);
+      }
+    };
+    if (activeStories.length > 0) {
+      fetchAvatars();
+    }
   }, [localStories]);
 
   // Floating emojis state
@@ -203,8 +251,9 @@ const Stories = () => {
           {/* Story Cards */}
           {activeStories.map(story => {
             const isMe = story.authorId === currentUser?.id;
-            const authorName = story.authorName || (isMe ? currentUser?.fullName : 'User');
-            const authorAvatar = isMe ? (currentUser?.avatar || story.authorAvatar) : story.authorAvatar;
+            const resolvedAuthor = authorDetails[story.authorId] || {};
+            const authorName = resolvedAuthor.fullName || story.authorName || (isMe ? currentUser?.fullName : 'User');
+            const authorAvatar = isMe ? (currentUser?.avatar || story.authorAvatar) : (resolvedAuthor.avatar || story.authorAvatar || '');
             const authorFirstName = authorName.split(' ')[0];
             return (
               <div
@@ -271,8 +320,9 @@ const Stories = () => {
             <div className="story-viewer-header">
               {(() => {
                 const isMe = activeStory.authorId === currentUser?.id;
-                const viewerAvatar = isMe ? (currentUser?.avatar || activeStory.authorAvatar) : activeStory.authorAvatar;
-                const viewerName = isMe ? (currentUser?.fullName || activeStory.authorName) : activeStory.authorName;
+                const resolvedAuthor = authorDetails[activeStory.authorId] || {};
+                const viewerAvatar = isMe ? (currentUser?.avatar || activeStory.authorAvatar) : (resolvedAuthor.avatar || activeStory.authorAvatar || '');
+                const viewerName = isMe ? (currentUser?.fullName || activeStory.authorName) : (resolvedAuthor.fullName || activeStory.authorName || 'User');
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {viewerAvatar ? (

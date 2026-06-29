@@ -422,3 +422,31 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Story Ring rotating gradient around profile avatar */
+.profile-avatar-wrap.has-story {
+  position: relative;
+}
+
+.profile-avatar-wrap.has-story::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border-radius: 50%;
+  border: 4px solid transparent;
+  background: linear-gradient(135deg, #1877f2, #f58529, #dd2a7b, #8134af, #515bd4) border-box;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  animation: rotateStoryRing 4s linear infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes rotateStoryRing {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

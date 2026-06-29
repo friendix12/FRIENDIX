@@ -96,6 +96,18 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('friendix_user', JSON.stringify(updated));
   };
 
+  const refreshUser = async () => {
+    try {
+      const { user } = await authAPI.getMe();
+      const userData = { ...user, id: user._id };
+      localStorage.setItem('friendix_user', JSON.stringify(userData));
+      setCurrentUser(userData);
+      return userData;
+    } catch (err) {
+      console.error('Failed to sync current user:', err);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       currentUser,
@@ -106,6 +118,7 @@ export const AuthProvider = ({ children }) => {
       logout,
       toggleTheme,
       updateProfile,
+      refreshUser,
     }}>
       {children}
     </AuthContext.Provider>
