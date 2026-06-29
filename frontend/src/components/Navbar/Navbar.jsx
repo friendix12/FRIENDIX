@@ -28,6 +28,7 @@ const Navbar = ({ activePage = 'home' }) => {
   const [conversations, setConversations] = useState([]);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
   const [showProModal, setShowProModal] = useState(false);
+  const [showProOffModal, setShowProOffModal] = useState(false); // NEW: Turn off modal
   const [proModalLoading, setProModalLoading] = useState(false);
 
   const searchRef = useRef(null);
@@ -442,19 +443,32 @@ const Navbar = ({ activePage = 'home' }) => {
                     <div className="menu-section-label">Settings & support</div>
 
                     {currentUser?.isProfessional ? (
-                      <div className="dropdown-item" onClick={() => { navigate('/professional-dashboard'); setShowMenu(false); }}>
-                        <div className="icon"><FiBarChart2 size={18} /></div>
-                        <div style={{ flex: 1 }}>
-                          <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Professional Dashboard</p>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>View insights & analytics</p>
+                      <>
+                        <div className="dropdown-item" onClick={() => { navigate('/professional-dashboard'); setShowMenu(false); }} id="navbar-pro-dashboard">
+                          <div className="icon" style={{ background: 'linear-gradient(135deg,rgba(24,119,242,0.15),rgba(124,58,237,0.15))' }}>
+                            <FiBarChart2 size={18} style={{ color: '#1877F2' }} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontWeight: 700, fontSize: '0.93rem', margin: 0, background: 'linear-gradient(135deg,#1877F2,#7C3AED)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Professional Dashboard</p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>View insights &amp; analytics</p>
+                          </div>
                         </div>
-                      </div>
+                        <div className="dropdown-item" id="navbar-turn-off-pro" onClick={() => { setShowProOffModal(true); setShowMenu(false); }} style={{ opacity: 0.75 }}>
+                          <div className="icon" style={{ background: 'rgba(220,53,69,0.1)' }}>
+                            <FiTrendingUp size={18} style={{ color: '#dc3545' }} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0, color: '#dc3545' }}>Turn off Professional Mode</p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>Revert to normal account</p>
+                          </div>
+                        </div>
+                      </>
                     ) : (
-                      <div className="dropdown-item" onClick={() => setShowProModal(true)}>
+                      <div className="dropdown-item" onClick={() => setShowProModal(true)} id="navbar-turn-on-pro">
                         <div className="icon"><FiTrendingUp size={18} /></div>
                         <div style={{ flex: 1 }}>
                           <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Turn on Professional Mode</p>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>Get insights, followers & more</p>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>Get insights, followers &amp; more</p>
                         </div>
                       </div>
                     )}
@@ -540,6 +554,31 @@ const Navbar = ({ activePage = 'home' }) => {
         }
         setShowProModal(false);
         setShowMenu(false);
+        setProModalLoading(false);
+        try {
+          await refreshUser();
+        } catch (err) {
+          console.error('Refresh user failed:', err);
+        }
+      }}
+    />
+    {/* Turn OFF Professional Mode Modal */}
+    <ProfessionalModeModal
+      isOpen={showProOffModal}
+      onClose={() => { setShowProOffModal(false); setProModalLoading(false); }}
+      mode="off"
+      loading={proModalLoading}
+      onConfirm={async () => {
+        setProModalLoading(true);
+        try {
+          await usersAPI.toggleProfessional();
+        } catch (err) {
+          console.error('Toggle off professional failed:', err);
+          alert('Failed to disable professional mode.');
+          setProModalLoading(false);
+          return;
+        }
+        setShowProOffModal(false);
         setProModalLoading(false);
         try {
           await refreshUser();

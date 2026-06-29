@@ -5,7 +5,7 @@ import { usersAPI } from '../../services/api';
 import {
   FiUsers, FiVideo, FiShoppingBag, FiZap, FiClock,
   FiBookmark, FiFileText, FiCalendar, FiRss, FiChevronDown,
-  FiChevronUp, FiCheckCircle
+  FiChevronUp, FiCheckCircle, FiBarChart2
 } from 'react-icons/fi';
 import './Sidebar.css';
 
@@ -75,8 +75,16 @@ const LeftSidebar = () => {
         <span className="sidebar-profile-name">{currentUser?.fullName}</span>
       </div>
 
-      {/* Navigation Items */}
-      <nav className="sidebar-nav">
+      {/* 🔥 Professional Dashboard — visible only when pro mode is ON */}
+        {currentUser?.isProfessional && (
+          <Link to="/professional-dashboard" className="sidebar-nav-item sidebar-pro-item" id="sidebar-pro-dashboard">
+            <span className="sidebar-nav-icon sidebar-pro-icon">
+              <FiBarChart2 size={20} />
+            </span>
+            <span className="sidebar-nav-label">Professional Dashboard</span>
+          </Link>
+        )}
+
         {visibleItems.map(item => (
           <Link key={item.path} to={item.path} className="sidebar-nav-item">
             <span className="sidebar-nav-icon">
