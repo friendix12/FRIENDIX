@@ -59,7 +59,9 @@ router.post('/login', async (req, res) => {
         { email: isEmail ? identifier.toLowerCase() : '' },
         { phone: identifier }
       ]
-    }).select('+password');
+    }).select('+password')
+      .populate('friendRequests', 'fullName firstName lastName avatar')
+      .populate('friends', 'fullName firstName lastName avatar');
 
     if (!user) return res.status(400).json({ error: 'ইমেইল/মোবাইল বা পাসওয়ার্ড ভুল।' });
     const isMatch = await bcrypt.compare(password, user.password);
