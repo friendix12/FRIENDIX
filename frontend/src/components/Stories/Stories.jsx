@@ -26,6 +26,13 @@ const Stories = () => {
   const [showViewerList, setShowViewerList] = useState(false);
   const [storyFile, setStoryFile] = useState(null);
 
+  // Filter active 24h stories dynamically
+  const activeStories = localStories.filter(story => {
+    const createdTime = new Date(story.createdAt).getTime();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    return (Date.now() - createdTime) < twentyFourHours;
+  });
+
   useEffect(() => {
     localStorage.setItem('friendix_local_stories', JSON.stringify(localStories));
   }, [localStories]);
@@ -60,7 +67,19 @@ const Stories = () => {
       setProgress(p => {
         if (p >= 100) {
           clearInterval(progressRef.current);
-          setActiveStory(null);
+          
+          // Read latest valid stories list from storage
+          const saved = localStorage.getItem('friendix_local_stories');
+          const storiesList = saved ? JSON.parse(saved) : [];
+          const validStories = storiesList.filter(s => (Date.now() - new Date(s.createdAt).getTime()) < 24 * 60 * 60 * 1000);
+          const currentIndex = validStories.findIndex(s => s.id === story.id);
+          
+          if (currentIndex !== -1 && currentIndex < validStories.length - 1) {
+            const nextStory = validStories[currentIndex + 1];
+            setTimeout(() => openStory(nextStory), 50);
+          } else {
+            setActiveStory(null);
+          }
           return 0;
         }
         return p + 1;
@@ -182,10 +201,10 @@ const Stories = () => {
           </div>
 
           {/* Story Cards */}
-          {localStories.map(story => {
+          {activeStories.map(story => {
             const isMe = story.authorId === currentUser?.id;
             const authorName = story.authorName || (isMe ? currentUser?.fullName : 'User');
-            const authorAvatar = story.authorAvatar || (isMe ? currentUser?.avatar : '');
+            const authorAvatar = isMe ? (currentUser?.avatar || story.authorAvatar) : story.authorAvatar;
             const authorFirstName = authorName.split(' ')[0];
             return (
               <div
@@ -250,19 +269,26 @@ const Stories = () => {
             </div>
 
             <div className="story-viewer-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {activeStory.authorAvatar ? (
-                  <img src={activeStory.authorAvatar} alt="" className="avatar avatar-md" style={{ border: '2px solid white' }} />
-                ) : (
-                  <div className="avatar-placeholder avatar-md" style={{ border: '2px solid white', fontSize: '0.9rem' }}>
-                    {activeStory.authorName?.[0]}
+              {(() => {
+                const isMe = activeStory.authorId === currentUser?.id;
+                const viewerAvatar = isMe ? (currentUser?.avatar || activeStory.authorAvatar) : activeStory.authorAvatar;
+                const viewerName = isMe ? (currentUser?.fullName || activeStory.authorName) : activeStory.authorName;
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {viewerAvatar ? (
+                      <img src={viewerAvatar} alt="" className="avatar avatar-md" style={{ border: '2px solid white' }} />
+                    ) : (
+                      <div className="avatar-placeholder avatar-md" style={{ border: '2px solid white', fontSize: '0.9rem' }}>
+                        {viewerName?.[0]}
+                      </div>
+                    )}
+                    <div>
+                      <p style={{ color: 'white', fontWeight: 700, fontSize: '0.93rem', margin: 0 }}>{viewerName}</p>
+                      <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.78rem', margin: '2px 0 0 0' }}>Just now</p>
+                    </div>
                   </div>
-                )}
-                <div>
-                  <p style={{ color: 'white', fontWeight: 700, fontSize: '0.93rem', margin: 0 }}>{activeStory.authorName}</p>
-                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.78rem', margin: '2px 0 0 0' }}>Just now</p>
-                </div>
-              </div>
+                );
+              })()}
               <button className="story-close-btn" onClick={closeStory}>
                 <FiX size={20} />
               </button>
