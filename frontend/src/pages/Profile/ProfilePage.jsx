@@ -24,12 +24,6 @@ const ProfilePage = () => {
   const [userPosts, setUserPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [userReels, setUserReels] = useState([
-    { id: 'ur1', videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-pouring-hot-coffee-into-a-cup-42289-large.mp4', views: '8.9K', description: 'Fresh morning brew ☕️' },
-    { id: 'ur2', videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-nightclub-43019-large.mp4', views: '45.1K', description: 'Neon lights and vibes ✨' },
-    { id: 'ur3', videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-flowers-under-blue-sky-4523-large.mp4', views: '12.4K', description: 'Yellow flowers sway 🌸' }
-  ]);
-
   const targetId = userId || currentUser?.id || currentUser?._id;
 
   const fetchProfileData = async () => {
@@ -59,7 +53,8 @@ const ProfilePage = () => {
 
   const isOwner = profileUser?._id === currentUser?._id || profileUser?.id === currentUser?.id;
   const isFriend = currentUser?.friends?.some(f => (f._id || f) === (profileUser?._id || profileUser?.id));
-  const userPhotos = userPosts.filter(p => p.image);
+  const userPhotos = userPosts.filter(p => p.image && !p.image.match(/\.(mp4|mov|avi|mkv|webm|3gp)/i));
+  const profileReels = userPosts.filter(p => p.image && p.image.match(/\.(mp4|mov|avi|mkv|webm|3gp)/i));
 
   const handleEditOpen = () => {
     setEditForm({
@@ -72,9 +67,14 @@ const ProfilePage = () => {
     setShowEditModal(true);
   };
 
-  const handleSaveProfile = () => {
-    updateProfile(editForm);
-    setShowEditModal(false);
+  const handleSaveProfile = async () => {
+    try {
+      // In the backend, we can update profile data
+      updateProfile(editForm);
+      setShowEditModal(false);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   if (loading) {
@@ -117,7 +117,7 @@ const ProfilePage = () => {
           {/* Cover Photo */}
           <div className="profile-cover-wrap">
             <img
-              src={profileUser?.coverPhoto || `https://picsum.photos/seed/cover${profileUser?.id}/900/300`}
+              src={profileUser?.coverPhoto || `https://picsum.photos/seed/cover_${profileUser?._id || profileUser?.id}/900/300`}
               alt="Cover"
               className="profile-cover-img"
             />
@@ -135,7 +135,7 @@ const ProfilePage = () => {
                 {profileUser?.avatar ? (
                   <img src={profileUser.avatar} alt={profileUser?.fullName} className="profile-avatar" />
                 ) : (
-                  <div className="avatar-placeholder" style={{ width: '168px', height: '168px', fontSize: '3rem' }}>
+                  <div className="avatar-placeholder" style={{ width: '168px', height: '168px', fontSize: '3.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary)', color: 'white', fontWeight: 800 }}>
                     {profileUser?.firstName?.[0]}{profileUser?.lastName?.[0]}
                   </div>
                 )}
@@ -151,18 +151,28 @@ const ProfilePage = () => {
               <div>
                 <h1 className="profile-full-name">{profileUser?.fullName}</h1>
                 <p className="profile-friend-count">
-                  {profileUser?.followers || 0} friends
+                  {(profileUser?.friends || []).length} friends
                 </p>
-                {/* Friend Avatars */}
-                <div className="friend-avatars">
-                  {mockUsers.filter(u => profileUser?.friends?.includes(u.id)).slice(0, 6).map((f, i) => (
-                    <img
-                      key={f.id}
-                      src={f.avatar}
-                      alt={f.fullName}
-                      className="avatar avatar-xs friend-avatar-overlap"
-                      style={{ marginLeft: i === 0 ? 0 : '-8px', zIndex: 6 - i }}
-                    />
+                {/* Friend Avatars overlaps */}
+                <div className="friend-avatars" style={{ display: 'flex', alignItems: 'center', marginTop: '6px' }}>
+                  {(profileUser?.friends || []).slice(0, 6).map((f, i) => (
+                    f.avatar ? (
+                      <img
+                        key={f._id || f.id}
+                        src={f.avatar}
+                        alt=""
+                        className="avatar avatar-xs friend-avatar-overlap"
+                        style={{ marginLeft: i === 0 ? 0 : '-8px', zIndex: 6 - i }}
+                      />
+                    ) : (
+                      <div
+                        key={f._id || f.id}
+                        className="avatar avatar-xs avatar-placeholder friend-avatar-overlap"
+                        style={{ marginLeft: i === 0 ? 0 : '-8px', zIndex: 6 - i, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary)', color: 'white', fontSize: '0.6rem', fontWeight: 700 }}
+                      >
+                        {f.firstName?.[0]}
+                      </div>
+                    )
                   ))}
                 </div>
               </div>
@@ -173,7 +183,7 @@ const ProfilePage = () => {
                     <button className="btn btn-primary" id="edit-profile-btn" onClick={handleEditOpen}>
                       <FiEdit2 style={{ marginRight: '6px' }} /> Edit Profile
                     </button>
-                    <button className="btn btn-secondary">
+                    <button className="btn btn-secondary" onClick={() => navigate('/')}>
                       <FiPlus style={{ marginRight: '6px' }} /> Add to Story
                     </button>
                     <button className="btn btn-secondary"><FiMoreHorizontal /></button>
@@ -250,9 +260,9 @@ const ProfilePage = () => {
                         <FiHeart style={{ color: 'var(--text-secondary)' }} /> <span>Relationship: <strong>{profileUser.relationship}</strong></span>
                       </div>
                     )}
-                    {profileUser?.joined && (
+                    {profileUser?.createdAt && (
                       <div className="intro-item">
-                        <FiCalendar style={{ color: 'var(--text-secondary)' }} /> <span>Joined <strong>{new Date(profileUser.joined).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</strong></span>
+                        <FiCalendar style={{ color: 'var(--text-secondary)' }} /> <span>Joined <strong>{new Date(profileUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</strong></span>
                       </div>
                     )}
                   </div>
@@ -305,7 +315,7 @@ const ProfilePage = () => {
                 <h2 style={{ fontWeight: 700, fontSize: '1.2rem', marginBottom: '20px' }}>About</h2>
                 <div className="intro-details">
                   {[
-                    { icon: <FiMail />, label: 'Email', value: profileUser?.email },
+                    { icon: <FiMail />, label: 'Email/Phone', value: profileUser?.email || profileUser?.phone },
                     { icon: <FiBriefcase />, label: 'Workplace', value: profileUser?.work },
                     { icon: <FiBookOpen />, label: 'Education', value: profileUser?.education },
                     { icon: <FiMapPin />, label: 'Location', value: profileUser?.location },
@@ -328,23 +338,34 @@ const ProfilePage = () => {
             <div style={{ maxWidth: '900px', margin: '0 auto' }}>
               <div className="card" style={{ padding: '20px' }}>
                 <h2 style={{ fontWeight: 700, fontSize: '1.2rem', marginBottom: '16px' }}>
-                  Friends · {profileUser?.followers || 0}
+                  Friends · {(profileUser?.friends || []).length}
                 </h2>
-                <div className="friends-grid">
-                  {mockUsers.filter(u => u.id !== profileUser?.id).map(user => (
-                    <div
-                      key={user.id}
-                      className="friend-card"
-                      onClick={() => navigate(`/profile/${user.id}`)}
-                    >
-                      <img src={user.avatar} alt={user.fullName} className="friend-card-img" />
-                      <p className="friend-card-name">{user.fullName}</p>
-                      <p className="friend-card-mutual">
-                        {Math.floor(Math.random() * 20) + 1} mutual friends
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                {(!profileUser?.friends || profileUser.friends.length === 0) ? (
+                  <p style={{ color: 'var(--text-secondary)', padding: '20px 0', textAlign: 'center' }}>No friends added yet.</p>
+                ) : (
+                  <div className="friends-grid">
+                    {profileUser.friends.map(user => {
+                      const userId = user._id || user.id;
+                      return (
+                        <div
+                          key={userId}
+                          className="friend-card"
+                          onClick={() => navigate(`/profile/${userId}`)}
+                        >
+                          {user.avatar ? (
+                            <img src={user.avatar} alt={user.fullName} className="friend-card-img" />
+                          ) : (
+                            <div className="avatar-placeholder friend-card-img" style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', background: 'var(--primary)', color: 'white', fontWeight: 700 }}>
+                              {user.firstName?.[0]}
+                            </div>
+                          )}
+                          <p className="friend-card-name">{user.fullName}</p>
+                          <p className="friend-card-mutual">Friend</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -356,7 +377,7 @@ const ProfilePage = () => {
                 {userPhotos.length > 0 ? (
                   <div className="photo-grid-large">
                     {userPhotos.map(p => (
-                      <img key={p.id} src={p.image} alt="User upload" className="photo-thumb-large" />
+                      <img key={p._id || p.id} src={p.image} alt="User upload" className="photo-thumb-large" />
                     ))}
                   </div>
                 ) : (
@@ -374,7 +395,6 @@ const ProfilePage = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-light)', paddingBottom: '12px' }}>
                   <div style={{ display: 'flex', gap: '16px' }}>
                     <span style={{ fontWeight: 700, fontSize: '0.93rem', borderBottom: '3px solid var(--primary)', paddingBottom: '10px', color: 'var(--primary)', cursor: 'pointer' }}>Your reels</span>
-                    <span style={{ fontWeight: 600, fontSize: '0.93rem', color: 'var(--text-secondary)', paddingBottom: '10px', cursor: 'pointer' }}>Saved reels</span>
                   </div>
                   {isOwner && (
                     <button
@@ -388,20 +408,27 @@ const ProfilePage = () => {
                   )}
                 </div>
 
-                <div className="profile-reels-grid">
-                  {userReels.map(reel => (
-                    <div key={reel.id} className="profile-reel-card">
-                      <video src={reel.videoUrl} muted className="profile-reel-thumb" />
-                      <div className="profile-reel-overlay">
-                        <FiPlay size={16} style={{ color: 'white', fill: 'white' }} />
-                        <span className="profile-reel-views">{reel.views}</span>
-                      </div>
-                      {reel.description && (
-                        <p className="profile-reel-desc">{reel.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                {profileReels.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px' }}>No reels uploaded yet.</p>
+                ) : (
+                  <div className="profile-reels-grid">
+                    {profileReels.map(reel => {
+                      const reelId = reel._id || reel.id;
+                      return (
+                        <div key={reelId} className="profile-reel-card" onClick={() => navigate('/watch')}>
+                          <video src={reel.image} muted className="profile-reel-thumb" />
+                          <div className="profile-reel-overlay">
+                            <FiPlay size={16} style={{ color: 'white', fill: 'white' }} />
+                            <span className="profile-reel-views">{(reel.likes || []).length} likes</span>
+                          </div>
+                          {reel.content && (
+                            <p className="profile-reel-desc">{reel.content}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -473,16 +500,7 @@ const ProfilePage = () => {
       <CreateReelModal
         isOpen={showCreateReel}
         onClose={() => setShowCreateReel(false)}
-        onUpload={(newReel) => {
-          const formattedReel = {
-            id: newReel.id,
-            videoUrl: newReel.videoUrl,
-            views: '0',
-            description: newReel.description
-          };
-          setUserReels([formattedReel, ...userReels]);
-          setShowCreateReel(false);
-        }}
+        onUpload={fetchProfileData}
       />
     </div>
   );

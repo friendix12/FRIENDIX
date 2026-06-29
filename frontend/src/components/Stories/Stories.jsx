@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { postsAPI } from '../../services/api';
 import { FiPlus, FiX, FiChevronLeft, FiChevronRight, FiMusic, FiEye, FiImage, FiType } from 'react-icons/fi';
 import './Stories.css';
 
@@ -23,6 +24,7 @@ const Stories = () => {
   const [progress, setProgress] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewerList, setShowViewerList] = useState(false);
+  const [storyFile, setStoryFile] = useState(null);
 
   useEffect(() => {
     localStorage.setItem('friendix_local_stories', JSON.stringify(localStories));
@@ -81,43 +83,54 @@ const Stories = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setStoryFile(file);
       const url = URL.createObjectURL(file);
       setStoryFilePreview(url);
     }
   };
 
-  const handleCreateStory = (e) => {
+  const handleCreateStory = async (e) => {
     e.preventDefault();
-    if (!storyFilePreview) return;
+    if (!storyFile) return;
 
-    const selectedMusic = MUSIC_TRACKS.find(t => t.id === storyForm.musicTrackId);
+    try {
+      // Upload file to Telegram/Cloudinary
+      const uploadRes = await postsAPI.uploadFile(storyFile);
+      const imageUrl = uploadRes.url;
 
-    const newStory = {
-      id: `s_${Date.now()}`,
-      authorId: currentUser?.id,
-      authorName: currentUser?.fullName,
-      authorAvatar: currentUser?.avatar,
-      image: storyFilePreview,
-      text: storyForm.text,
-      filter: storyForm.filter,
-      musicUrl: selectedMusic?.url || '',
-      musicLabel: selectedMusic?.id !== 'none' ? selectedMusic?.label : '',
-      bgColor: storyForm.bgColor,
-      viewers: [],
-      createdAt: new Date().toISOString()
-    };
+      const selectedMusic = MUSIC_TRACKS.find(t => t.id === storyForm.musicTrackId);
 
-    setLocalStories([newStory, ...localStories]);
-    setShowCreateModal(false);
-    
-    // Reset form
-    setStoryFilePreview(null);
-    setStoryForm({
-      text: '',
-      filter: 'none',
-      musicTrackId: 'none',
-      bgColor: 'linear-gradient(135deg, #1877F2 0%, #00C6FF 100%)'
-    });
+      const newStory = {
+        id: `s_${Date.now()}`,
+        authorId: currentUser?.id,
+        authorName: currentUser?.fullName,
+        authorAvatar: currentUser?.avatar,
+        image: imageUrl,
+        text: storyForm.text,
+        filter: storyForm.filter,
+        musicUrl: selectedMusic?.url || '',
+        musicLabel: selectedMusic?.id !== 'none' ? selectedMusic?.label : '',
+        bgColor: storyForm.bgColor,
+        viewers: [],
+        createdAt: new Date().toISOString()
+      };
+
+      setLocalStories([newStory, ...localStories]);
+      setShowCreateModal(false);
+      
+      // Reset form
+      setStoryFile(null);
+      setStoryFilePreview(null);
+      setStoryForm({
+        text: '',
+        filter: 'none',
+        musicTrackId: 'none',
+        bgColor: 'linear-gradient(135deg, #1877F2 0%, #00C6FF 100%)'
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload story photo.');
+    }
   };
 
   const handleAddEmojiReaction = (emoji) => {
