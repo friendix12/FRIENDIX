@@ -24,8 +24,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ===== DATABASE CONNECTION =====
+const seedAdmin = require('./utils/seedAdmin');
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ MongoDB Atlas Connected!'))
+  .then(() => {
+    console.log('✅ MongoDB Atlas Connected!');
+    seedAdmin();
+  })
   .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // ===== ROUTES =====

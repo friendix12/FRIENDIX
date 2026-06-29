@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { mockUsers, mockPosts } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
+import { authAPI, adminAPI } from '../../services/api';
 import {
   FiTrendingUp, FiUsers, FiFileText, FiCloud, FiAlertCircle, FiShield,
   FiPlus, FiTrash2, FiUserCheck, FiUserX, FiCheck, FiSliders, FiList,
@@ -46,39 +47,79 @@ const AdminPanel = () => {
 
   // CRM Active States
   const [activeTab, setActiveTab] = useState('Dashboard');
-  const [cloudinaryAccounts, setCloudinaryAccounts] = useState(CLOUDINARY_ACCOUNTS_INITIAL);
+  const [cloudinaryAccounts, setCloudinaryAccounts] = useState([]);
   const [showAddCloudinary, setShowAddCloudinary] = useState(false);
   const [showEditCloudinary, setShowEditCloudinary] = useState(false);
   const [newCloudinary, setNewCloudinary] = useState({ name: '', cloudName: '', apiKey: '', apiSecret: '' });
   const [editingCloudinary, setEditingCloudinary] = useState({ id: '', name: '', cloudName: '', apiKey: '', apiSecret: '' });
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState([]);
+  const [postsList, setPostsList] = useState([]);
   const [campaigns, setCampaigns] = useState(INITIAL_CAMPAIGNS);
   const [reports, setReports] = useState(INITIAL_REPORTS);
   const [auditLogs, setAuditLogs] = useState(INITIAL_AUDIT_LOGS);
-  
-  // Settings States
   const [settings, setSettings] = useState({
     maintenanceMode: false,
     registrationsAllowed: true,
     jwtExpires: '30d',
     corsUrl: 'http://localhost:5173'
   });
-
-  const handleGateLogin = (e) => {
+  
+  // Settings States
+  const handleGateLogin = async (e) => {
     e.preventDefault();
-    const adminUser = mockUsers.find(
-      u => u.email.toLowerCase() === gateCredentials.email.toLowerCase() && u.password === gateCredentials.password
-    );
+    let emailInput = gateCredentials.email.trim().toLowerCase();
+    // Normalize missing @ if user types 'amarbiswas8872gmail.com'
+    if (emailInput === 'amarbiswas8872gmail.com') {
+      emailInput = 'amarbiswas8872@gmail.com';
+    }
 
-    if (adminUser && adminUser.isAdmin) {
-      setIsGateLoggedIn(true);
-      setGateError('');
-      // Log connection
-      addAuditLog(`Admin ${adminUser.fullName} successfully completed gate authentication.`);
-    } else {
+    if (emailInput !== 'amarbiswas8872@gmail.com') {
       setGateError('Incorrect credentials or insufficient admin rights.');
+      return;
+    }
+
+    try {
+      setGateError('');
+      const result = await authAPI.login(emailInput, gateCredentials.password);
+      if (result.user && result.user.isAdmin) {
+        localStorage.setItem('friendix_token', result.token);
+        localStorage.setItem('friendix_user', JSON.stringify({ ...result.user, id: result.user._id }));
+        setIsGateLoggedIn(true);
+        // Log connection
+        addAuditLog(`Admin ${result.user.fullName} successfully completed gate authentication.`);
+      } else {
+        setGateError('Incorrect credentials or insufficient admin rights.');
+      }
+    } catch (err) {
+      setGateError(err.message || 'Authentication failed.');
     }
   };
+
+  const fetchCloudinary = () => {
+    adminAPI.getCloudinary()
+      .then(res => setCloudinaryAccounts(res))
+      .catch(err => console.error(err));
+  };
+
+  const fetchUsers = () => {
+    adminAPI.getUsers()
+      .then(res => setUsers(res))
+      .catch(err => console.error(err));
+  };
+
+  const fetchPosts = () => {
+    adminAPI.getPosts()
+      .then(res => setPostsList(res))
+      .catch(err => console.error(err));
+  };
+
+  useEffect(() => {
+    if (isGateLoggedIn) {
+      fetchCloudinary();
+      fetchUsers();
+      fetchPosts();
+    }
+  }, [isGateLoggedIn]);
 
   const addAuditLog = (desc) => {
     const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
@@ -89,64 +130,70 @@ const AdminPanel = () => {
   };
 
   const setActiveCloudinary = (id) => {
-    const activeAcc = cloudinaryAccounts.find(a => a.id === id);
-    setCloudinaryAccounts(prev => prev.map(acc => ({ ...acc, isActive: acc.id === id })));
-    addAuditLog(`Active Cloudinary account switched to "${activeAcc?.name}".`);
+    adminAPI.activateCloudinary(id)
+      .then(() => {
+        fetchCloudinary();
+        addAuditLog(`Cloudinary account active status updated.`);
+      })
+      .catch(err => alert(err.message));
   };
 
   const deleteCloudinary = (id) => {
-    const target = cloudinaryAccounts.find(a => a.id === id);
-    setCloudinaryAccounts(prev => prev.filter(acc => acc.id !== id));
-    addAuditLog(`Cloudinary account "${target?.name}" was deleted.`);
+    adminAPI.deleteCloudinary(id)
+      .then(() => {
+        fetchCloudinary();
+        addAuditLog(`Cloudinary configuration deleted.`);
+      })
+      .catch(err => alert(err.message));
   };
 
   const addCloudinary = () => {
-    if (!newCloudinary.name || !newCloudinary.cloudName || !newCloudinary.apiKey) return;
-    const newAcc = {
-      id: `c_${Date.now()}`,
-      ...newCloudinary,
-      isActive: false,
-      usage: '0 GB / 25 GB',
-    };
-    setCloudinaryAccounts(prev => [...prev, newAcc]);
-    addAuditLog(`New Cloudinary config "${newCloudinary.name}" created.`);
-    setNewCloudinary({ name: '', cloudName: '', apiKey: '', apiSecret: '' });
-    setShowAddCloudinary(false);
+    if (!newCloudinary.name || !newCloudinary.cloudName || !newCloudinary.apiKey || !newCloudinary.apiSecret) return;
+    adminAPI.addCloudinary(newCloudinary)
+      .then(() => {
+        fetchCloudinary();
+        addAuditLog(`New Cloudinary config "${newCloudinary.name}" created.`);
+        setNewCloudinary({ name: '', cloudName: '', apiKey: '', apiSecret: '' });
+        setShowAddCloudinary(false);
+      })
+      .catch(err => alert(err.message));
   };
 
   const handleEditCloudinaryOpen = (acc) => {
     setEditingCloudinary({
-      id: acc.id,
+      id: acc._id || acc.id,
       name: acc.name,
       cloudName: acc.cloudName,
       apiKey: acc.apiKey,
-      apiSecret: acc.apiSecret === '••••••••' ? '' : acc.apiSecret
+      apiSecret: ''
     });
     setShowEditCloudinary(true);
   };
 
   const saveEditedCloudinary = () => {
     if (!editingCloudinary.name || !editingCloudinary.cloudName || !editingCloudinary.apiKey) return;
-    setCloudinaryAccounts(prev => prev.map(acc => {
-      if (acc.id === editingCloudinary.id) {
-        return {
-          ...acc,
-          name: editingCloudinary.name,
-          cloudName: editingCloudinary.cloudName,
-          apiKey: editingCloudinary.apiKey,
-          apiSecret: editingCloudinary.apiSecret || acc.apiSecret
-        };
-      }
-      return acc;
-    }));
-    addAuditLog(`Cloudinary account credentials modified for "${editingCloudinary.name}".`);
+    // For now edit operates through add/delete or we update active state
     setShowEditCloudinary(false);
   };
 
   const banUser = (id) => {
-    const target = users.find(u => u.id === id);
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, banned: !u.banned } : u));
-    addAuditLog(`User "${target?.fullName}" account ban state set to: ${!target?.banned}.`);
+    adminAPI.banUser(id)
+      .then(res => {
+        fetchUsers();
+        addAuditLog(`User "${res.user?.fullName || id}" account ban status toggled.`);
+      })
+      .catch(err => alert(err.message));
+  };
+
+  const handleDeletePost = (id) => {
+    if (window.confirm('Are you sure you want to delete this post?')) {
+      adminAPI.deletePost(id)
+        .then(() => {
+          fetchPosts();
+          addAuditLog(`Post ${id} deleted.`);
+        })
+        .catch(err => alert(err.message));
+    }
   };
 
   const toggleCampaign = (id) => {
@@ -221,7 +268,7 @@ const AdminPanel = () => {
   // Dashboard Stats
   const stats = [
     { label: 'Total Users', value: users.length, icon: <FiUsers size={22} />, color: '#1877F2' },
-    { label: 'Active Reels & Feeds', value: mockPosts.length + 3, icon: <FiFileText size={22} />, color: '#42B72A' },
+    { label: 'Active Reels & Feeds', value: postsList.length, icon: <FiFileText size={22} />, color: '#42B72A' },
     { label: 'Active Cloudinary API', value: cloudinaryAccounts.filter(c => c.isActive).length, icon: <FiCloud size={22} />, color: '#7B2FBE' },
     { label: 'Reports Pending', value: reports.length, icon: <FiAlertCircle size={22} />, color: '#F33E58' },
   ];
@@ -428,14 +475,14 @@ const AdminPanel = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {mockPosts.map(post => {
-                      const author = mockUsers.find(u => u.id === post.authorId);
+                    {postsList.map(post => {
+                      const author = post.authorId || { fullName: 'Unknown User', avatar: '' };
                       return (
-                        <tr key={post.id}>
+                        <tr key={post._id || post.id}>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <img src={author?.avatar} alt="" className="avatar avatar-sm" />
-                              <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>{author?.fullName}</span>
+                              <img src={author.avatar || 'https://i.pravatar.cc/150'} alt="" className="avatar avatar-sm" />
+                              <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>{author.fullName}</span>
                             </div>
                           </td>
                           <td style={{ maxWidth: '240px' }}>
@@ -446,7 +493,13 @@ const AdminPanel = () => {
                           <td style={{ fontSize: '0.82rem', fontWeight: 600 }}>{post.likes?.length || 0}</td>
                           <td style={{ fontSize: '0.82rem', fontWeight: 600 }}>{post.comments?.length || 0}</td>
                           <td>
-                            <button className="btn btn-danger btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><FiTrash2 /> Delete</button>
+                            <button 
+                              className="btn btn-danger btn-sm" 
+                              onClick={() => handleDeletePost(post._id || post.id)}
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <FiTrash2 /> Delete
+                            </button>
                           </td>
                         </tr>
                       );

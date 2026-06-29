@@ -51,7 +51,7 @@ const AppRoutes = () => {
       <Route path="/marketplace" element={<ProtectedRoute><MarketplacePage /></ProtectedRoute>} />
       <Route path="/groups" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
       <Route path="/friends" element={<ProtectedRoute><FriendsPage /></ProtectedRoute>} />
-      <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+      <Route path="/admin" element={<AdminPanel />} />
 
       {/* Fallbacks */}
       <Route path="/gaming" element={<ProtectedRoute><GamingPage /></ProtectedRoute>} />

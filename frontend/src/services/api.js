@@ -103,4 +103,27 @@ export const notificationsAPI = {
   markAllRead: () => apiFetch('/notifications/read-all', { method: 'PUT' }),
 };
 
-export default { authAPI, postsAPI, usersAPI, messagesAPI, notificationsAPI };
+// ===== ADMIN =====
+export const adminAPI = {
+  getCloudinary: () => apiFetch('/admin/cloudinary'),
+  addCloudinary: (config) => apiFetch('/admin/cloudinary', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  }),
+  activateCloudinary: (id) => apiFetch(`/admin/cloudinary/${id}/activate`, {
+    method: 'PATCH',
+  }),
+  deleteCloudinary: (id) => apiFetch(`/admin/cloudinary/${id}`, {
+    method: 'DELETE',
+  }),
+  getUsers: () => apiFetch('/admin/users'),
+  banUser: (id) => apiFetch(`/admin/users/${id}/ban`, {
+    method: 'PATCH',
+  }),
+  getPosts: () => apiFetch('/admin/posts'),
+  deletePost: (id) => apiFetch(`/admin/posts/${id}`, {
+    method: 'DELETE',
+  }),
+};
+
+export default { authAPI, postsAPI, usersAPI, messagesAPI, notificationsAPI, adminAPI };

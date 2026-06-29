@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar/Navbar';
 import PostCard from '../../components/Post/PostCard';
 import CreateReelModal from '../../components/CreateReel/CreateReelModal';
-import { mockUsers, mockPosts } from '../../data/mockData';
+import { usersAPI, postsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { FiCamera, FiEdit2, FiPlus, FiMessageSquare, FiMoreHorizontal, FiMail, FiBriefcase, FiBookOpen, FiMapPin, FiHeart, FiCalendar, FiVideo, FiPlay } from 'react-icons/fi';
 import './ProfilePage.css';
@@ -19,16 +19,46 @@ const ProfilePage = () => {
   const [editForm, setEditForm] = useState({});
   const [showCreateReel, setShowCreateReel] = useState(false);
   
+  // Real Profile States
+  const [profileUser, setProfileUser] = useState(null);
+  const [userPosts, setUserPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [userReels, setUserReels] = useState([
     { id: 'ur1', videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-pouring-hot-coffee-into-a-cup-42289-large.mp4', views: '8.9K', description: 'Fresh morning brew ☕️' },
     { id: 'ur2', videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-nightclub-43019-large.mp4', views: '45.1K', description: 'Neon lights and vibes ✨' },
     { id: 'ur3', videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-flowers-under-blue-sky-4523-large.mp4', views: '12.4K', description: 'Yellow flowers sway 🌸' }
   ]);
 
-  const profileUser = mockUsers.find(u => u.id === userId) || currentUser;
-  const isOwner = profileUser?.id === currentUser?.id;
-  const isFriend = currentUser?.friends?.includes(profileUser?.id);
-  const userPosts = mockPosts.filter(p => p.authorId === profileUser?.id);
+  const targetId = userId || currentUser?.id || currentUser?._id;
+
+  const fetchProfileData = async () => {
+    try {
+      setLoading(true);
+      if (targetId === currentUser?.id || targetId === currentUser?._id) {
+        setProfileUser(currentUser);
+      } else {
+        const res = await usersAPI.getProfile(targetId);
+        setProfileUser(res.user);
+      }
+
+      const postsRes = await postsAPI.getUserPosts(targetId);
+      setUserPosts(postsRes.posts || []);
+    } catch (err) {
+      console.error('Error fetching profile details:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (targetId) {
+      fetchProfileData();
+    }
+  }, [userId, currentUser]);
+
+  const isOwner = profileUser?._id === currentUser?._id || profileUser?.id === currentUser?.id;
+  const isFriend = currentUser?.friends?.some(f => (f._id || f) === (profileUser?._id || profileUser?.id));
   const userPhotos = userPosts.filter(p => p.image);
 
   const handleEditOpen = () => {
@@ -46,6 +76,19 @@ const ProfilePage = () => {
     updateProfile(editForm);
     setShowEditModal(false);
   };
+
+  if (loading) {
+    return (
+      <div className="app-layout">
+        <Navbar />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+          <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+            Loading Profile...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!profileUser) {
     return (
@@ -236,17 +279,16 @@ const ProfilePage = () => {
                     </div>
                     <div className="photo-grid">
                       {userPhotos.slice(0, 9).map(p => (
-                        <img key={p.id} src={p.image} alt="Thumb" className="photo-thumb" />
+                        <img key={p._id || p.id} src={p.image} alt="Thumb" className="photo-thumb" />
                       ))}
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Right: Posts */}
               <div className="profile-posts-column">
                 {userPosts.length > 0 ? (
-                  userPosts.map(post => <PostCard key={post.id} post={post} />)
+                  userPosts.map(post => <PostCard key={post._id || post.id} post={post} onDelete={fetchProfileData} />)
                 ) : (
                   <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
                     <p style={{ fontSize: '2rem' }}>📝</p>
