@@ -269,6 +269,7 @@ export const groupsAPI = {
 // ===== STORIES =====
 export const storiesAPI = {
   getAll: () => apiFetch('/stories'),
+  getArchive: () => apiFetch('/stories/archive'),
   create: (storyData) => apiFetch('/stories', {
     method: 'POST',
     body: JSON.stringify(storyData),
