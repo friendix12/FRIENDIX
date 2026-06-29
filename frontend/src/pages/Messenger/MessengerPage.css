@@ -363,6 +363,121 @@
   transform: scale(1.05);
 }
 
+.chat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Emoji Picker */
+.emoji-picker-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: 320px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 300;
+  overflow: hidden;
+}
+
+.emoji-picker-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-light);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px;
+  gap: 2px;
+}
+
+.emoji-picker-tabs::-webkit-scrollbar { display: none; }
+
+.emoji-tab {
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  transition: var(--transition);
+  font-family: var(--font);
+}
+
+.emoji-tab:hover { background: var(--bg-hover); }
+.emoji-tab.active { background: var(--primary-light); color: var(--primary); }
+
+.emoji-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  padding: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.emoji-pick-btn {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s;
+}
+
+.emoji-pick-btn:hover {
+  background: var(--bg-hover);
+  transform: scale(1.3);
+}
+
+/* Chat Image Preview */
+.chat-image-preview {
+  position: relative;
+  padding: 8px 12px 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-light);
+}
+
+.chat-image-preview img {
+  max-width: 200px;
+  max-height: 150px;
+  border-radius: 10px;
+  object-fit: cover;
+  display: block;
+  box-shadow: var(--shadow-sm);
+}
+
+.chat-image-preview-remove {
+  position: absolute;
+  top: 2px;
+  left: 12px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.chat-image-preview-remove:hover {
+  background: rgba(220,38,38,0.9);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .messenger-layout {

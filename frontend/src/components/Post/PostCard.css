@@ -403,6 +403,35 @@
   color: var(--text-secondary);
 }
 
+/* Share Modal */
+.share-modal {
+  max-width: 400px;
+}
+
+.share-option-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.share-option-item:hover {
+  background: var(--bg-hover);
+}
+
+.share-option-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: white;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .post-action-btn span:last-child {

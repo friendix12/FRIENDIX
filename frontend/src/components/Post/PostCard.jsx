@@ -5,7 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { postsAPI } from '../../services/api';
 import {
   FiThumbsUp, FiMessageSquare, FiShare2, FiMoreHorizontal,
-  FiBookmark, FiLink, FiFlag, FiEyeOff, FiEdit2, FiTrash2, FiX, FiSend, FiGlobe
+  FiBookmark, FiLink, FiFlag, FiEyeOff, FiEdit2, FiTrash2, FiX, FiSend, FiGlobe,
+  FiCopy
 } from 'react-icons/fi';
 import './PostCard.css';
 
@@ -27,6 +28,7 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
   const [comment, setComment] = useState('');
   const [localComments, setLocalComments] = useState(post.comments || []);
   const [localLikes, setLocalLikes] = useState(post.likes || []);
+  const [localReactions, setLocalReactions] = useState(post.reactions || { like: 0, love: 0, care: 0, haha: 0, wow: 0, sad: 0, angry: 0 });
   const [userReaction, setUserReaction] = useState(
     localLikes.includes(currentUser?.id || currentUser?._id) ? 'like' : null
   );
@@ -39,6 +41,7 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
 
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareCount, setShareCount] = useState(post.shares || 0);
+  const [copied, setCopied] = useState(false);
   const reactionTimer = useRef(null);
   const author = post.authorId || {};
 
@@ -56,8 +59,13 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
       if (userReaction === type) {
         setUserReaction(null);
         setLocalLikes(localLikes.filter(id => id !== (currentUser?.id || currentUser?._id)));
+        setLocalReactions(prev => ({ ...prev, [type]: Math.max(0, (prev[type] || 0) - 1) }));
       } else {
+        if (userReaction) {
+          setLocalReactions(prev => ({ ...prev, [userReaction]: Math.max(0, (prev[userReaction] || 0) - 1) }));
+        }
         setUserReaction(type);
+        setLocalReactions(prev => ({ ...prev, [type]: (prev[type] || 0) + 1 }));
         if (!localLikes.includes(currentUser?.id || currentUser?._id)) {
           setLocalLikes([...localLikes, currentUser?.id || currentUser?._id]);
         }
@@ -69,13 +77,16 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
   };
 
   const handleQuickLike = async () => {
+    const type = 'like';
     try {
-      await postsAPI.reactToPost(post._id || post.id, 'like');
+      await postsAPI.reactToPost(post._id || post.id, type);
       if (userReaction) {
+        setLocalReactions(prev => ({ ...prev, [userReaction]: Math.max(0, (prev[userReaction] || 0) - 1) }));
         setUserReaction(null);
         setLocalLikes(localLikes.filter(id => id !== (currentUser?.id || currentUser?._id)));
       } else {
-        setUserReaction('like');
+        setUserReaction(type);
+        setLocalReactions(prev => ({ ...prev, [type]: (prev[type] || 0) + 1 }));
         if (!localLikes.includes(currentUser?.id || currentUser?._id)) {
           setLocalLikes([...localLikes, currentUser?.id || currentUser?._id]);
         }
@@ -127,7 +138,14 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
   const isOwner = authorIdStr && currentUserIdStr && authorIdStr.toString() === currentUserIdStr.toString();
 
   const currentReaction = userReaction ? REACTIONS.find(r => r.type === userReaction) : null;
-  const totalReactionCount = localLikes.length;
+  const totalReactionCount = Object.values(localReactions).reduce((a, b) => a + b, 0);
+
+  const getTopReactions = () => {
+    const sorted = REACTIONS
+      .filter(r => localReactions[r.type] > 0)
+      .sort((a, b) => (localReactions[b.type] || 0) - (localReactions[a.type] || 0));
+    return sorted.slice(0, 3);
+  };
 
   // Render text content and detect blue clickable links
   const renderPostText = (text) => {
@@ -305,13 +323,14 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
           {totalReactionCount > 0 && (
             <>
               <div className="reaction-icons-small">
-                {userReaction && <span>{REACTIONS.find(r => r.type === userReaction)?.emoji}</span>}
-                {!userReaction && <span>👍</span>}
+                {getTopReactions().map(r => (
+                  <span key={r.type} style={{ fontSize: '1rem', marginLeft: '-2px' }}>{r.emoji}</span>
+                ))}
               </div>
               <span className="post-stat-count">
                 {localLikes.includes(currentUser?.id || currentUser?._id)
-                  ? localLikes.length > 1 ? `You and ${localLikes.length - 1} others` : 'You'
-                  : localLikes.length > 0 ? localLikes.length : ''}
+                  ? totalReactionCount > 1 ? `You and ${totalReactionCount - 1} others` : 'You'
+                  : totalReactionCount > 0 ? totalReactionCount : ''}
               </span>
             </>
           )}
@@ -370,11 +389,80 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
           <span>Comment</span>
         </button>
 
-        <button className="post-action-btn" onClick={() => { setShareCount(shareCount + 1); alert('Post shared successfully!'); }}>
+        <button className="post-action-btn" onClick={() => setShowShareModal(true)}>
           <FiShare2 size={18} />
           <span>Share</span>
         </button>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="modal-overlay" onClick={() => { setShowShareModal(false); setCopied(false); }}>
+          <div className="modal share-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', width: '100%' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Share to</h3>
+              <button className="modal-close" onClick={() => { setShowShareModal(false); setCopied(false); }}><FiX size={18} /></button>
+            </div>
+            <div className="modal-body" style={{ padding: '8px 0' }}>
+              <div className="share-option-item" onClick={() => {
+                const url = window.location.origin + '/post/' + (post._id || post.id);
+                navigator.clipboard.writeText(url);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}>
+                <div className="share-option-icon" style={{ background: 'var(--bg-hover)' }}><FiCopy size={20} /></div>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Copy link</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>{copied ? 'Link copied!' : 'Copy the post link to clipboard'}</p>
+                </div>
+              </div>
+              <div className="share-option-item" onClick={() => {
+                const url = encodeURIComponent(window.location.origin + '/post/' + (post._id || post.id));
+                window.open(`https://api.whatsapp.com/send?text=${url}`, '_blank');
+                setShareCount(shareCount + 1);
+                setShowShareModal(false);
+              }}>
+                <div className="share-option-icon" style={{ background: '#25D366' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                </div>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>WhatsApp</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>Share via WhatsApp</p>
+                </div>
+              </div>
+              <div className="share-option-item" onClick={() => {
+                const url = encodeURIComponent(window.location.origin + '/post/' + (post._id || post.id));
+                window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+                setShareCount(shareCount + 1);
+                setShowShareModal(false);
+              }}>
+                <div className="share-option-icon" style={{ background: '#1877F2' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                </div>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Facebook</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>Share on your timeline</p>
+                </div>
+              </div>
+              <div className="share-option-item" onClick={() => {
+                const url = encodeURIComponent(window.location.origin + '/post/' + (post._id || post.id));
+                const text = encodeURIComponent('Check this out!');
+                window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank');
+                setShareCount(shareCount + 1);
+                setShowShareModal(false);
+              }}>
+                <div className="share-option-icon" style={{ background: '#000' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                </div>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>X (Twitter)</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>Share on X</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Comments section */}
       {showComments && (
