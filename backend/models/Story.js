@@ -15,8 +15,8 @@ const StorySchema = new mongoose.Schema({
   visibility: { type: String, enum: ['friends', 'public', 'only_me'], default: 'friends' },
   stickers: [{ emoji: String, x: Number, y: Number, size: { type: Number, default: 40 } }], // NEW: stickers
   viewers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  // 30-day TTL for archive support (active window = 24h, archive = up to 30 days)
-  createdAt: { type: Date, default: Date.now, expires: 2592000 } // 30 days
+  // Active window = 48h (filtered in route), DB TTL = 30 days for archive
+  createdAt: { type: Date, default: Date.now, expires: 2592000 } // 30 days DB retention
 }, { timestamps: true });
 
 module.exports = mongoose.model('Story', StorySchema);

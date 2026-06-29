@@ -4,15 +4,18 @@ const Story = require('../models/Story');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
-// ========== ACTIVE STORIES (last 24h) ==========
+// Story active window = 48 hours
+const ACTIVE_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+// ========== ACTIVE STORIES (last 48h) ==========
 // GET /api/stories — visible to current user
 router.get('/', auth, async (req, res) => {
   try {
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const fortyEightHoursAgo = new Date(Date.now() - ACTIVE_WINDOW_MS);
     const me = await User.findById(req.userId).select('friends');
     const myFriendIds = (me?.friends || []).map(id => id.toString());
 
-    const allStories = await Story.find({ createdAt: { $gte: twentyFourHoursAgo } })
+    const allStories = await Story.find({ createdAt: { $gte: fortyEightHoursAgo } })
       .populate('authorId', 'fullName firstName lastName avatar')
       .sort({ createdAt: -1 });
 
@@ -30,14 +33,14 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// ========== ARCHIVE (my stories older than 24h) ==========
+// ========== ARCHIVE (my stories older than 48h, within 30 days) ==========
 // GET /api/stories/archive
 router.get('/archive', auth, async (req, res) => {
   try {
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const fortyEightHoursAgo = new Date(Date.now() - ACTIVE_WINDOW_MS);
     const archivedStories = await Story.find({
       authorId: req.userId,
-      createdAt: { $lt: twentyFourHoursAgo }
+      createdAt: { $lt: fortyEightHoursAgo }
     })
       .populate('authorId', 'fullName firstName lastName avatar')
       .sort({ createdAt: -1 });
