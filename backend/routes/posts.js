@@ -162,6 +162,26 @@ router.post('/:id/comment', auth, async (req, res) => {
   }
 });
 
+// PUT /api/posts/:id — edit post content
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'পোস্ট পাওয়া যায়নি।' });
+    if (post.authorId.toString() !== req.userId) {
+      return res.status(403).json({ error: 'অনুমতি নেই।' });
+    }
+    const { content, privacy } = req.body;
+    if (content !== undefined) post.content = content;
+    if (privacy !== undefined) post.privacy = privacy;
+    await post.save();
+    const populated = await Post.findById(post._id)
+      .populate('authorId', 'fullName avatar');
+    res.json({ post: populated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/posts/:id — delete post (own or admin)
 router.delete('/:id', auth, async (req, res) => {
   try {

@@ -53,6 +53,7 @@ export const authAPI = {
 // ===== POSTS =====
 export const postsAPI = {
   getFeed: () => apiFetch('/posts/feed'),
+  getAll: () => apiFetch('/posts/feed'),
 
   getUserPosts: (userId) => apiFetch(`/posts/user/${userId}`),
 
@@ -126,6 +127,11 @@ export const postsAPI = {
   }),
 
   deletePost: (postId) => apiFetch(`/posts/${postId}`, { method: 'DELETE' }),
+
+  updatePost: (postId, postData) => apiFetch(`/posts/${postId}`, {
+    method: 'PUT',
+    body: JSON.stringify(postData),
+  }),
 };
 
 // ===== USERS =====
