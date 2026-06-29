@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { FiEye, FiEyeOff, FiAlertCircle } from 'react-icons/fi';
+import loginHero from '../../assets/login_hero.png';
 import './Auth.css';
 
 const LoginPage = () => {
@@ -42,7 +43,7 @@ const LoginPage = () => {
           </div>
           <div className="login-collage-wrap">
             <img 
-              src="/src/assets/login_hero.png" 
+              src={loginHero} 
               alt="Explore the things you love" 
               className="login-hero-img animate-fadeIn" 
             />

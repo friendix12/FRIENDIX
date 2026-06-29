@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/Auth/LoginPage';
 import SignupPage from './pages/Auth/SignupPage';
+import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
 import FeedPage from './pages/Feed/FeedPage';
 import ProfilePage from './pages/Profile/ProfilePage';
 import MessengerPage from './pages/Messenger/MessengerPage';
@@ -41,6 +42,7 @@ const AppRoutes = () => {
       {/* Public */}
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/signup" element={<PublicRoute><SignupPage /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
 
       {/* Protected */}
       <Route path="/" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
