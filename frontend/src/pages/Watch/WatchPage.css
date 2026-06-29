@@ -101,7 +101,8 @@
 .reel-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: #000;
 }
 
 /* Overlay gradient at bottom for text readability */

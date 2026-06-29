@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar/Navbar';
 import CreateReelModal from '../../components/CreateReel/CreateReelModal';
 import { useAuth } from '../../context/AuthContext';
@@ -12,6 +13,7 @@ import './WatchPage.css';
 
 const WatchPage = () => {
   const { currentUser } = useAuth();
+  const [searchParams] = useSearchParams();
   const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -46,6 +48,15 @@ const WatchPage = () => {
       }));
 
       setReels(mappedReels);
+      
+      const targetId = searchParams.get('id');
+      if (targetId) {
+        const foundIdx = mappedReels.findIndex(r => r.id === targetId);
+        if (foundIdx !== -1) {
+          setActiveIndex(foundIdx);
+          return;
+        }
+      }
       setActiveIndex(0);
     } catch (err) {
       console.error('Failed to fetch video reels:', err);

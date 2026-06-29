@@ -476,7 +476,7 @@ const ProfilePage = () => {
                     {profileReels.map(reel => {
                       const reelId = reel._id || reel.id;
                       return (
-                        <div key={reelId} className="profile-reel-card" onClick={() => navigate('/watch')}>
+                        <div key={reelId} className="profile-reel-card" onClick={() => navigate(`/watch?id=${reelId}`)}>
                           <video src={reel.image} muted className="profile-reel-thumb" />
                           <div className="profile-reel-overlay">
                             <FiPlay size={16} style={{ color: 'white', fill: 'white' }} />
