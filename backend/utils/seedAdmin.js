@@ -1,4 +1,4 @@
-const bcrypt = require('bcryptjs');
+﻿const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
 const seedAdmin = async () => {
@@ -33,7 +33,7 @@ const seedAdmin = async () => {
       avatar: 'https://i.pravatar.cc/150?img=33',
       isAdmin: true,
       bio: 'Super Administrator of FRIENDIX',
-      gender: 'পুরুষ'
+      gender: 'Male'
     });
 
     console.log('🚀 Super Admin seeded successfully: amarbiswas8872@gmail.com');

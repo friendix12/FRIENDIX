@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatTime } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
-import { postsAPI } from '../../services/api';
+import { postsAPI, usersAPI } from '../../services/api';
 import {
   FiThumbsUp, FiMessageSquare, FiShare2, FiMoreHorizontal,
   FiBookmark, FiLink, FiFlag, FiEyeOff, FiEdit2, FiTrash2, FiX, FiSend, FiGlobe,
@@ -29,9 +29,12 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
   const [localComments, setLocalComments] = useState(post.comments || []);
   const [localLikes, setLocalLikes] = useState(post.likes || []);
   const [localReactions, setLocalReactions] = useState(post.reactions || { like: 0, love: 0, care: 0, haha: 0, wow: 0, sad: 0, angry: 0 });
-  const [userReaction, setUserReaction] = useState(
-    localLikes.includes(currentUser?.id || currentUser?._id) ? 'like' : null
-  );
+  const [userReaction, setUserReaction] = useState(() => {
+    const myId = currentUser?.id || currentUser?._id;
+    if (!myId) return null;
+    const userReactions = post.userReactions || {};
+    return userReactions[myId] || (localLikes.includes(myId) ? 'like' : null);
+  });
   
   // Menu and Edit States
   const [showMenu, setShowMenu] = useState(false);
@@ -44,6 +47,21 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
   const [copied, setCopied] = useState(false);
   const reactionTimer = useRef(null);
   const author = post.authorId || {};
+  const authorIdStr = author?._id || author?.id || '';
+  const currentUserId = currentUser?.id || currentUser?._id || '';
+
+  useEffect(() => {
+    if (!currentUserId || !authorIdStr || authorIdStr === currentUserId) return;
+    if (!post._id && !post.id) return;
+    const trackView = async () => {
+      try {
+        await usersAPI.trackPostView(post._id || post.id);
+      } catch (err) {
+        // silent fail
+      }
+    };
+    trackView();
+  }, [post._id, post.id]);
 
   const handleReactionHover = () => {
     reactionTimer.current = setTimeout(() => setShowReactions(true), 600);
@@ -77,7 +95,7 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
   };
 
   const handleQuickLike = async () => {
-    const type = 'like';
+    const type = userReaction || 'like';
     try {
       await postsAPI.reactToPost(post._id || post.id, type);
       if (userReaction) {
@@ -110,14 +128,14 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
   };
 
   const handleDeletePost = async () => {
-    if (!window.confirm('পোস্টটি ডিলিট করতে চান?')) return;
+    if (!window.confirm('Delete this post?')) return;
     try {
       const postId = post._id || post.id;
       await postsAPI.deletePost(postId);
       onDelete?.(postId);
     } catch (err) {
       console.error(err);
-      alert('পোস্ট ডিলিট করা যায়নি।');
+      alert('Failed to delete post.');
     }
   };
 
@@ -129,11 +147,10 @@ const PostCard = ({ post, onLike, onComment, onDelete }) => {
       setIsEditing(false);
     } catch (err) {
       console.error(err);
-      alert('পোস্ট এডিট করা যায়নি।');
+      alert('Failed to edit post.');
     }
   };
 
-  const authorIdStr = author?._id || author?.id || '';
   const currentUserIdStr = currentUser?.id || currentUser?._id || '';
   const isOwner = authorIdStr && currentUserIdStr && authorIdStr.toString() === currentUserIdStr.toString();
 

@@ -26,6 +26,7 @@ const CreatePost = ({ onPost }) => {
   const [feeling, setFeeling] = useState('');
   const [showFeelings, setShowFeelings] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
+  const [privacy, setPrivacy] = useState('public');
   const fileRef = useRef(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -54,18 +55,18 @@ const CreatePost = ({ onPost }) => {
         image: uploadedUrl,
         bgColor: uploadedUrl ? null : bgColor,
         feeling: feeling || null,
-        privacy: 'public'
+        privacy: privacy
       });
 
       if (res.post) {
         onPost?.(res.post);
         setText(''); setImage(null); setImagePreview(null);
-        setBgColor(null); setFeeling(''); setOpen(false);
-        setShowFeelings(false); setShowBgPicker(false);
+        setBgColor(null); setFeeling(''); setPrivacy('public');
+        setOpen(false); setShowFeelings(false); setShowBgPicker(false);
       }
     } catch (err) {
       console.error('Failed to create post:', err);
-      alert(err.message || 'পোস্ট ক্রিয়েট করা যায়নি।');
+      alert(err.message || 'Failed to create post.');
     } finally {
       setSubmitting(false);
     }
@@ -196,7 +197,20 @@ const CreatePost = ({ onPost }) => {
               )}
 
               <div className="add-to-post-row">
-                <p style={{ fontWeight: 700, fontSize: '0.93rem', color: 'var(--text-primary)' }}>Add to your post</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <select
+                    className="form-input"
+                    style={{ padding: '4px 8px', fontSize: '0.8rem', fontWeight: 600, width: 'auto' }}
+                    value={privacy}
+                    onChange={e => setPrivacy(e.target.value)}
+                  >
+                    <option value="public">🌐 Public</option>
+                    <option value="friends">👥 Friends</option>
+                    <option value="only_me">🔒 Only me</option>
+                    {currentUser?.isProfessional && <option value="followers">👤 Followers</option>}
+                  </select>
+                  <p style={{ fontWeight: 700, fontSize: '0.93rem', color: 'var(--text-primary)' }}>Add to your post</p>
+                </div>
                 <div style={{ display: 'flex', gap: '4px' }}>
                   <button className="add-to-post-btn" title="Photo/Video" onClick={() => fileRef.current?.click()}><FiImage size={20} color="#42B72A" /></button>
                   <button className="add-to-post-btn" title="Tag Friends"><FiTag size={20} color="#1877F2" /></button>

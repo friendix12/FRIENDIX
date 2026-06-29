@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Message = require('../models/Message');
@@ -69,7 +69,7 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { receiverId, content, image } = req.body;
-    if (!receiverId || (!content && !image)) return res.status(400).json({ error: 'রিসিভার ও মেসেজ দিন।' });
+    if (!receiverId || (!content && !image)) return res.status(400).json({ error: 'Please provide receiver and message.' });
     const message = await Message.create({
       senderId: req.userId,
       receiverId,
@@ -87,9 +87,9 @@ router.post('/', auth, async (req, res) => {
 router.delete('/:msgId', auth, async (req, res) => {
   try {
     const message = await Message.findById(req.params.msgId);
-    if (!message) return res.status(404).json({ error: 'মেসেজ পাওয়া যায়নি।' });
+    if (!message) return res.status(404).json({ error: 'Message not found.' });
     if (message.senderId.toString() !== req.userId && message.receiverId.toString() !== req.userId) {
-      return res.status(403).json({ error: 'অনুমতি নেই।' });
+      return res.status(403).json({ error: 'Permission denied.' });
     }
     await Message.findByIdAndDelete(req.params.msgId);
     res.json({ success: true });

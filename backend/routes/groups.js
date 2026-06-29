@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Group = require('../models/Group');
@@ -19,7 +19,7 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { name, description, cover, logo, privacy } = req.body;
-    if (!name) return res.status(400).json({ error: 'গ্রুপের নাম দেয়া আবশ্যক।' });
+    if (!name) return res.status(400).json({ error: 'Group name is required.' });
 
     const newGroup = await Group.create({
       name,
@@ -45,7 +45,7 @@ router.post('/:id/join', auth, async (req, res) => {
       { $addToSet: { members: req.userId } },
       { new: true }
     );
-    if (!group) return res.status(404).json({ error: 'গ্রুপ পাওয়া যায়নি।' });
+    if (!group) return res.status(404).json({ error: 'Group not found.' });
     res.json({ group });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -60,7 +60,7 @@ router.post('/:id/leave', auth, async (req, res) => {
       { $pull: { members: req.userId } },
       { new: true }
     );
-    if (!group) return res.status(404).json({ error: 'গ্রুপ পাওয়া যায়নি।' });
+    if (!group) return res.status(404).json({ error: 'Group not found.' });
     res.json({ group });
   } catch (err) {
     res.status(500).json({ error: err.message });

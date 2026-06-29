@@ -518,4 +518,17 @@
   .navbar-inner {
     padding: 0 8px;
   }
+
+  .navbar-dropdown {
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    right: 0;
+    bottom: 56px;
+    min-width: unset;
+    max-height: unset;
+    border-radius: 0;
+    overflow-y: auto;
+    z-index: 1000;
+  }
 }

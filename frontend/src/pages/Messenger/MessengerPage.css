@@ -485,6 +485,49 @@
   }
 
   .messenger-sidebar {
+    display: flex;
+    width: 100%;
+  }
+
+  .messenger-layout.mobile-show-chat .messenger-sidebar {
     display: none;
+  }
+
+  .chat-window {
+    display: none;
+  }
+
+  .messenger-layout.mobile-show-chat .chat-window {
+    display: flex;
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    right: 0;
+    bottom: 56px;
+    z-index: 200;
+    height: auto;
+  }
+
+  .mobile-back-btn {
+    display: flex !important;
+  }
+
+  .chat-input {
+    font-size: 16px;
+  }
+
+  .emoji-picker-popup {
+    width: 280px;
+    left: -40px;
+  }
+
+  .emoji-picker-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-back-btn {
+    display: none !important;
   }
 }

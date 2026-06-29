@@ -59,7 +59,7 @@ const MarketplacePage = () => {
     e.preventDefault();
     const { title, price, location, category, condition, description, imageFile } = sellForm;
     if (!title || !price || !location || !imageFile) {
-      alert('সবগুলো ফিল্ড পূরণ করুন এবং একটি ছবি আপলোড করুন।');
+      alert('Please fill all fields and upload an image.');
       return;
     }
 
@@ -96,7 +96,7 @@ const MarketplacePage = () => {
       fetchProducts();
     } catch (err) {
       console.error(err);
-      alert('পণ্য পোস্ট করা যায়নি। আবার চেষ্টা করুন।');
+      alert('Failed to post product. Please try again.');
     } finally {
       setSubmitting(false);
     }

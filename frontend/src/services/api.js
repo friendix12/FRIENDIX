@@ -154,6 +154,38 @@ export const usersAPI = {
   declineFriendRequest: (userId) => apiFetch(`/users/${userId}/decline-request`, { method: 'DELETE' }),
 
   unfriend: (userId) => apiFetch(`/users/${userId}/unfriend`, { method: 'DELETE' }),
+
+  // Follow/Unfollow
+  follow: (userId) => apiFetch(`/users/${userId}/follow`, { method: 'POST' }),
+
+  unfollow: (userId) => apiFetch(`/users/${userId}/unfollow`, { method: 'DELETE' }),
+
+  getFollowers: (userId) => apiFetch(`/users/${userId}/followers`),
+
+  getFollowing: (userId) => apiFetch(`/users/${userId}/following`),
+
+  // Professional Mode
+  toggleProfessional: () => apiFetch('/users/professional/toggle', { method: 'POST' }),
+
+  setCategory: (category) => apiFetch('/users/professional/category', {
+    method: 'PUT',
+    body: JSON.stringify({ category }),
+  }),
+
+  getDashboard: () => apiFetch('/users/professional/dashboard'),
+
+  getMyPostAnalytics: (period) => apiFetch(`/users/analytics/my-posts?period=${period || '90d'}`),
+
+  trackPostView: (postId) => apiFetch('/users/analytics/track-view', {
+    method: 'POST',
+    body: JSON.stringify({ postId }),
+  }),
+
+  // Alias
+  trackView: (postId) => apiFetch('/users/analytics/track-view', {
+    method: 'POST',
+    body: JSON.stringify({ postId }),
+  }),
 };
 
 // ===== MESSAGES =====
@@ -213,6 +245,12 @@ export const productsAPI = {
   }),
 };
 
+// ===== PRESENCE (Online Status) =====
+export const presenceAPI = {
+  heartbeat: () => apiFetch('/presence/heartbeat', { method: 'POST' }),
+  getOnline: (ids) => apiFetch(`/presence/online?ids=${ids.join(',')}`),
+};
+
 // ===== GROUPS =====
 export const groupsAPI = {
   getAll: () => apiFetch('/groups'),
@@ -240,4 +278,4 @@ export const storiesAPI = {
   }),
 };
 
-export default { authAPI, postsAPI, usersAPI, messagesAPI, notificationsAPI, adminAPI, productsAPI, groupsAPI, storiesAPI };
+export default { authAPI, postsAPI, usersAPI, messagesAPI, notificationsAPI, adminAPI, productsAPI, groupsAPI, storiesAPI, presenceAPI };

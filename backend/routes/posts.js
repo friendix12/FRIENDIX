@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const upload = multer({ limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB limit for video/reels
@@ -21,7 +21,7 @@ router.get('/storage-config', auth, (req, res) => {
 // POST /api/posts/upload — upload file (image or video)
 router.post('/upload', auth, upload.single('file'), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'ফাইল আপলোড করুন।' });
+    if (!req.file) return res.status(400).json({ error: 'Please upload a file.' });
     
     let uploadResult;
     if (process.env.STORAGE_PROVIDER === 'telegram') {
@@ -82,7 +82,7 @@ router.get('/user/:userId', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { content, image, bgColor, feeling, privacy } = req.body;
-    if (!content && !image) return res.status(400).json({ error: 'পোস্টে কিছু একটা লিখুন বা ছবি দিন।' });
+    if (!content && !image) return res.status(400).json({ error: 'Please write something or add an image.' });
     const post = await Post.create({
       authorId: req.userId,
       content: content || '',
@@ -104,15 +104,26 @@ router.put('/:id/react', auth, async (req, res) => {
   try {
     const { type } = req.body; // 'like','love','haha','wow','sad','angry','care'
     const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ error: 'পোস্ট পাওয়া যায়নি।' });
+    if (!post) return res.status(404).json({ error: 'Post not found.' });
     const alreadyLiked = post.likes.includes(req.userId);
-    if (alreadyLiked) {
+    const prevType = (post.userReactions && post.userReactions.get(req.userId.toString())) || 'like';
+    const newType = (type && post.reactions[type] !== undefined) ? type : 'like';
+
+    if (alreadyLiked && prevType === newType) {
+      // Same reaction → toggle off (remove)
       post.likes.pull(req.userId);
-      if (type && post.reactions[type] > 0) post.reactions[type]--;
+      if (post.userReactions) post.userReactions.delete(req.userId.toString());
+      if (post.reactions[prevType] > 0) post.reactions[prevType]--;
+    } else if (alreadyLiked && prevType !== newType) {
+      // Different reaction → switch type
+      if (post.reactions[prevType] > 0) post.reactions[prevType]--;
+      post.reactions[newType]++;
+      if (post.userReactions) post.userReactions.set(req.userId.toString(), newType);
     } else {
+      // Not yet reacted → add new reaction
       post.likes.push(req.userId);
-      if (type && post.reactions[type] !== undefined) post.reactions[type]++;
-      else post.reactions.like++;
+      post.reactions[newType]++;
+      if (post.userReactions) post.userReactions.set(req.userId.toString(), newType);
 
       // Create notification
       if (post.authorId.toString() !== req.userId) {
@@ -121,7 +132,7 @@ router.put('/:id/react', auth, async (req, res) => {
           fromId: req.userId,
           type: 'like',
           postId: post._id,
-          message: 'আপনার পোস্টে রিঅ্যাকশন দিয়েছেন।'
+          message: 'reacted to your post.'
         });
       }
     }
@@ -136,9 +147,9 @@ router.put('/:id/react', auth, async (req, res) => {
 router.post('/:id/comment', auth, async (req, res) => {
   try {
     const { content } = req.body;
-    if (!content) return res.status(400).json({ error: 'মন্তব্য লিখুন।' });
+    if (!content) return res.status(400).json({ error: 'Please write a comment.' });
     const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ error: 'পোস্ট পাওয়া যায়নি।' });
+    if (!post) return res.status(404).json({ error: 'Post not found.' });
     post.comments.push({ authorId: req.userId, content });
     await post.save();
 
@@ -149,7 +160,7 @@ router.post('/:id/comment', auth, async (req, res) => {
         fromId: req.userId,
         type: 'comment',
         postId: post._id,
-        message: 'আপনার পোস্টে একটি মন্তব্য করেছেন।'
+        message: 'commented on your post.'
       });
     }
 
@@ -166,9 +177,9 @@ router.post('/:id/comment', auth, async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ error: 'পোস্ট পাওয়া যায়নি।' });
+    if (!post) return res.status(404).json({ error: 'Post not found.' });
     if (post.authorId.toString() !== req.userId) {
-      return res.status(403).json({ error: 'অনুমতি নেই।' });
+      return res.status(403).json({ error: 'Permission denied.' });
     }
     const { content, privacy } = req.body;
     if (content !== undefined) post.content = content;
@@ -186,13 +197,13 @@ router.put('/:id', auth, async (req, res) => {
 router.delete('/:id', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ error: 'পোস্ট পাওয়া যায়নি।' });
+    if (!post) return res.status(404).json({ error: 'Post not found.' });
     const me = await User.findById(req.userId);
     if (post.authorId.toString() !== req.userId && !me.isAdmin) {
-      return res.status(403).json({ error: 'অনুমতি নেই।' });
+      return res.status(403).json({ error: 'Permission denied.' });
     }
     await post.deleteOne();
-    res.json({ message: 'পোস্ট ডিলিট করা হয়েছে।' });
+    res.json({ message: 'Post deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

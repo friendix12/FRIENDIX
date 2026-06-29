@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Product = require('../models/Product');
@@ -20,7 +20,7 @@ router.post('/', auth, async (req, res) => {
   try {
     const { title, price, location, category, condition, description, image } = req.body;
     if (!title || !price || !location || !image) {
-      return res.status(400).json({ error: 'সব ফিল্ড পূরণ করুন।' });
+      return res.status(400).json({ error: 'Please fill all fields.' });
     }
 
     const product = await Product.create({

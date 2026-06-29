@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const adminOnly = require('../middleware/adminOnly');
@@ -34,8 +34,8 @@ router.patch('/cloudinary/:id/activate', auth, adminOnly, async (req, res) => {
   try {
     await CloudinaryConfig.updateMany({}, { isActive: false });
     const config = await CloudinaryConfig.findByIdAndUpdate(req.params.id, { isActive: true }, { new: true });
-    if (!config) return res.status(404).json({ error: 'কনফিগ পাওয়া যায়নি।' });
-    res.json({ message: 'Cloudinary সক্রিয় করা হয়েছে।', config });
+    if (!config) return res.status(404).json({ error: 'Config not found.' });
+    res.json({ message: 'Cloudinary activated.', config });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -45,10 +45,10 @@ router.patch('/cloudinary/:id/activate', auth, adminOnly, async (req, res) => {
 router.delete('/cloudinary/:id', auth, adminOnly, async (req, res) => {
   try {
     const config = await CloudinaryConfig.findById(req.params.id);
-    if (!config) return res.status(404).json({ error: 'কনফিগ পাওয়া যায়নি।' });
-    if (config.isActive) return res.status(400).json({ error: 'সক্রিয় কনফিগ মুছে ফেলা যাবে না।' });
+    if (!config) return res.status(404).json({ error: 'Config not found.' });
+    if (config.isActive) return res.status(400).json({ error: 'Cannot delete active config.' });
     await config.deleteOne();
-    res.json({ message: 'Cloudinary অ্যাকাউন্ট মুছে ফেলা হয়েছে।' });
+    res.json({ message: 'Cloudinary account removed.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -68,7 +68,7 @@ router.get('/users', auth, adminOnly, async (req, res) => {
 router.patch('/users/:id/ban', auth, adminOnly, async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(req.params.id, { $bit: { banned: { xor: 1 } } }, { new: true });
-    res.json({ message: `ব্যবহারকারী ${user.banned ? 'নিষিদ্ধ' : 'সক্রিয়'} করা হয়েছে।`, user });
+    res.json({ message: user.banned ? 'User banned.' : 'User enabled.', user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -88,7 +88,7 @@ router.get('/posts', auth, adminOnly, async (req, res) => {
 router.delete('/posts/:id', auth, adminOnly, async (req, res) => {
   try {
     await Post.findByIdAndDelete(req.params.id);
-    res.json({ message: 'পোস্ট মুছে ফেলা হয়েছে।' });
+    res.json({ message: 'Post deleted.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

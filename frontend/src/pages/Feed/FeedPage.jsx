@@ -37,7 +37,7 @@ const FeedPage = () => {
       await postsAPI.deletePost(postId);
       setPosts(prevPosts => prevPosts.filter(p => (p._id || p.id) !== postId));
     } catch (err) {
-      alert(err.message || 'পোস্ট ডিলিট করা যায়নি।');
+      alert(err.message || 'Failed to delete post.');
     }
   };
 

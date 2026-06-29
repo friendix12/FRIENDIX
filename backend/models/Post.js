@@ -7,8 +7,13 @@ const PostSchema = new mongoose.Schema({
   imagePublicId: { type: String, default: null },
   bgColor: { type: String, default: null },
   feeling: { type: String, default: null },
-  privacy: { type: String, enum: ['public', 'friends', 'only_me'], default: 'public' },
+  privacy: { type: String, enum: ['public', 'friends', 'followers', 'only_me'], default: 'public' },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  userReactions: {
+    type: Map,
+    of: String,
+    default: {},
+  },
   reactions: {
     like: { type: Number, default: 0 },
     love: { type: Number, default: 0 },
@@ -25,6 +30,16 @@ const PostSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
   }],
   shares: { type: Number, default: 0 },
+
+  // Analytics
+  analytics: {
+    reach: { type: Number, default: 0 },
+    impressions: { type: Number, default: 0 },
+    engagement: { type: Number, default: 0 },
+    videoViews: { type: Number, default: 0 },
+    clickCount: { type: Number, default: 0 },
+  },
+
   reported: { type: Boolean, default: false },
   reportReason: { type: String, default: '' },
 }, { timestamps: true });

@@ -108,7 +108,7 @@ const GroupsPage = () => {
       fetchGroups();
     } catch (err) {
       console.error(err);
-      alert('গ্রুপ তৈরি করতে সমস্যা হয়েছে।');
+      alert('Failed to create group.');
     } finally {
       setSubmitting(false);
     }

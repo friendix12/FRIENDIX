@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const Story = require('../models/Story');
 const auth = require('../middleware/auth');
@@ -21,11 +21,11 @@ router.post('/', auth, async (req, res) => {
   try {
     const { image, text, filter, musicUrl, musicLabel, bgColor } = req.body;
     if (!image) {
-      return res.status(400).json({ error: 'স্টোরির জন্য ইমেজ দেওয়া আবশ্যক।' });
+      return res.status(400).json({ error: 'Story image is required.' });
     }
 
     const userObj = await User.findById(req.userId);
-    if (!userObj) return res.status(404).json({ error: 'ব্যবহারকারী পাওয়া যায়নি।' });
+    if (!userObj) return res.status(404).json({ error: 'User not found.' });
 
     const story = await Story.create({
       authorId: req.userId,

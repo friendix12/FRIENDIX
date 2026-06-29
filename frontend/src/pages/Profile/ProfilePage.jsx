@@ -5,6 +5,7 @@ import PostCard from '../../components/Post/PostCard';
 import CreateReelModal from '../../components/CreateReel/CreateReelModal';
 import { usersAPI, postsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { usePresence } from '../../context/PresenceContext';
 import { FiCamera, FiEdit2, FiPlus, FiMessageSquare, FiMoreHorizontal, FiMail, FiBriefcase, FiBookOpen, FiMapPin, FiHeart, FiCalendar, FiVideo, FiPlay } from 'react-icons/fi';
 import './ProfilePage.css';
 
@@ -13,6 +14,7 @@ const TABS = ['Posts', 'About', 'Friends', 'Photos', 'Reels'];
 const ProfilePage = () => {
   const { userId } = useParams();
   const { currentUser, updateProfile, refreshUser } = useAuth();
+  const { isOnline, trackUsers } = usePresence();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Posts');
   const [showEditModal, setShowEditModal] = useState(false);
@@ -92,7 +94,12 @@ const ProfilePage = () => {
     if (targetId) {
       fetchProfileData();
     }
-  }, [userId, currentUser]);
+  }, [userId]);
+
+  useEffect(() => {
+    const ids = (profileUser?.friends || []).map(f => f._id || f.id).filter(Boolean);
+    if (ids.length > 0) trackUsers(ids);
+  }, [profileUser, trackUsers]);
 
   const isOwner = profileUser?._id === currentUser?._id || profileUser?.id === currentUser?.id;
   
@@ -127,7 +134,7 @@ const ProfilePage = () => {
       } else if (action === 'decline' || action === 'cancel') {
         await usersAPI.declineFriendRequest(targetId);
       } else if (action === 'unfriend') {
-        if (window.confirm('আপনি কি এই বন্ধুটিকে বাদ দিতে চান?')) {
+        if (window.confirm('Remove this friend?')) {
           await usersAPI.unfriend(targetId);
         } else {
           return;
@@ -137,7 +144,21 @@ const ProfilePage = () => {
       await fetchProfileData();
     } catch (err) {
       console.error(err);
-      alert('বন্ধুত্বের অনুরোধ প্রসেস করা যায়নি।');
+      alert('Failed to process friend request.');
+    }
+  };
+
+  const handleFollowAction = async () => {
+    try {
+      if (profileUser?.isFollowing) {
+        await usersAPI.unfollow(targetId);
+      } else {
+        await usersAPI.follow(targetId);
+      }
+      await fetchProfileData();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to process follow action.');
     }
   };
 
@@ -154,8 +175,12 @@ const ProfilePage = () => {
 
   const handleSaveProfile = async () => {
     try {
-      // In the backend, we can update profile data
-      updateProfile(editForm);
+      const updates = { ...editForm };
+      if (editForm.profileCategory) {
+        await usersAPI.setCategory(editForm.profileCategory);
+      }
+      delete updates.profileCategory;
+      updateProfile(updates);
       setShowEditModal(false);
     } catch (err) {
       console.error(err);
@@ -269,9 +294,25 @@ const ProfilePage = () => {
 
             <div className="profile-name-section">
               <div>
-                <h1 className="profile-full-name">{profileUser?.fullName}</h1>
+                <h1 className="profile-full-name">
+                  {profileUser?.fullName}
+                  {profileUser?.isProfessional && (
+                    <span className="pro-badge" title={profileUser.profileCategory || 'Digital Creator'} style={{ marginLeft: '8px', fontSize: '0.75rem', background: 'var(--primary)', color: 'white', padding: '2px 8px', borderRadius: '12px', fontWeight: 600, verticalAlign: 'middle' }}>
+                      ✓ {profileUser.profileCategory || 'Creator'}
+                    </span>
+                  )}
+                </h1>
                 <p className="profile-friend-count">
-                  {(profileUser?.friends || []).length} friends
+                  {profileUser?.isProfessional ? (
+                    <>
+                      {(profileUser.followerCount || 0).toLocaleString()} followers · {(profileUser.followingCount || 0).toLocaleString()} following
+                    </>
+                  ) : (
+                    <>
+                      {(profileUser?.friends || []).length} friends
+                      {profileUser?.isProfessional && <> · {(profileUser.followerCount || 0).toLocaleString()} followers</>}
+                    </>
+                  )}
                 </p>
                 {/* Friend Avatars overlaps */}
                 <div className="friend-avatars" style={{ display: 'flex', alignItems: 'center', marginTop: '6px' }}>
@@ -320,7 +361,17 @@ const ProfilePage = () => {
                         <button className="btn btn-secondary" onClick={() => handleFriendAction('decline')}>Decline</button>
                       </div>
                     ) : (
-                      <button className="btn btn-primary" onClick={() => handleFriendAction('send')}>Add Friend</button>
+                      <>
+                        <button className="btn btn-primary" onClick={() => handleFriendAction('send')}>Add Friend</button>
+                        {profileUser?.isProfessional && (
+                          <button
+                            className={`btn ${profileUser?.isFollowing ? 'btn-secondary' : 'btn-primary'}`}
+                            onClick={handleFollowAction}
+                          >
+                            {profileUser?.isFollowing ? '✓ Following' : 'Follow'}
+                          </button>
+                        )}
+                      </>
                     )}
                     <button className="btn btn-secondary" onClick={() => navigate(`/messenger?userId=${targetId}`)}>
                       <FiMessageSquare style={{ marginRight: '6px' }} /> Message
@@ -479,13 +530,16 @@ const ProfilePage = () => {
                           className="friend-card"
                           onClick={() => navigate(`/profile/${userId}`)}
                         >
-                          {user.avatar ? (
-                            <img src={user.avatar} alt={user.fullName} className="friend-card-img" />
-                          ) : (
-                            <div className="avatar-placeholder friend-card-img" style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', background: 'var(--primary)', color: 'white', fontWeight: 700 }}>
-                              {user.firstName?.[0]}
-                            </div>
-                          )}
+                          <div style={{ position: 'relative' }}>
+                            {user.avatar ? (
+                              <img src={user.avatar} alt={user.fullName} className="friend-card-img" />
+                            ) : (
+                              <div className="avatar-placeholder friend-card-img" style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', background: 'var(--primary)', color: 'white', fontWeight: 700 }}>
+                                {user.firstName?.[0]}
+                              </div>
+                            )}
+                            <span className={`online-dot ${isOnline(userId) ? 'active' : ''}`} />
+                          </div>
                           <p className="friend-card-name">{user.fullName}</p>
                           <p className="friend-card-mutual">Friend</p>
                         </div>
@@ -577,6 +631,7 @@ const ProfilePage = () => {
                 { name: 'education', label: 'Education', placeholder: 'Where did you study?', type: 'text' },
                 { name: 'location', label: 'Location', placeholder: 'Where do you live?', type: 'text' },
                 { name: 'relationship', label: 'Relationship Status', placeholder: 'Relationship status', type: 'select' },
+                ...(currentUser?.isProfessional ? [{ name: 'profileCategory', label: 'Profile Category', placeholder: '', type: 'category' }] : []),
               ].map(field => (
                 <div key={field.name} className="form-group">
                   <label className="form-label">{field.label}</label>
@@ -599,6 +654,17 @@ const ProfilePage = () => {
                       <option value="">Select...</option>
                       {['Single', 'In a relationship', 'Married', 'Divorced', 'It\'s complicated'].map(s => (
                         <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  ) : field.type === 'category' ? (
+                    <select
+                      id={`edit-${field.name}`}
+                      className="form-input"
+                      value={editForm[field.name] || currentUser?.profileCategory || 'Digital Creator'}
+                      onChange={e => setEditForm({ ...editForm, [field.name]: e.target.value })}
+                    >
+                      {['Digital Creator', 'Gaming Creator', 'Music Artist', 'Public Figure', 'Educator', 'Business', 'Health & Fitness'].map(c => (
+                        <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
                   ) : (

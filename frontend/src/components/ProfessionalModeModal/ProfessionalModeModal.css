@@ -1,0 +1,197 @@
+.pro-modal-container {
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pro-modal-header {
+  text-align: center;
+  padding: 32px 24px 16px;
+  position: relative;
+}
+
+.pro-modal-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 28px;
+}
+
+.pro-modal-icon.on {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: white;
+  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.35);
+}
+
+.pro-modal-icon.off {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.pro-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+}
+
+.pro-modal-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.pro-modal-features {
+  padding: 8px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pro-modal-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pro-modal-feature-icon {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.pro-modal-feature-icon.purple { background: #ede9fe; color: #7c3aed; }
+.pro-modal-feature-icon.blue { background: #dbeafe; color: #2563eb; }
+.pro-modal-feature-icon.green { background: #dcfce7; color: #16a34a; }
+.pro-modal-feature-icon.orange { background: #ffedd5; color: #ea580c; }
+
+[data-theme="dark"] .pro-modal-feature-icon.purple { background: rgba(124, 58, 237, 0.15); }
+[data-theme="dark"] .pro-modal-feature-icon.blue { background: rgba(37, 99, 235, 0.15); }
+[data-theme="dark"] .pro-modal-feature-icon.green { background: rgba(22, 163, 74, 0.15); }
+[data-theme="dark"] .pro-modal-feature-icon.orange { background: rgba(234, 88, 12, 0.15); }
+
+.pro-modal-feature-text {
+  flex: 1;
+}
+
+.pro-modal-feature-text h4 {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 2px;
+}
+
+.pro-modal-feature-text p {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.pro-modal-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 0 24px;
+}
+
+.pro-modal-actions {
+  padding: 16px 24px 24px;
+  display: flex;
+  gap: 12px;
+}
+
+.pro-modal-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.pro-modal-btn-cancel {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.pro-modal-btn-cancel:hover {
+  background: var(--border-light);
+}
+
+.pro-modal-btn-confirm {
+  background: #1877f2;
+  color: white;
+}
+
+.pro-modal-btn-confirm:hover {
+  background: #1565d8;
+}
+
+.pro-modal-btn-confirm.turning-off {
+  background: #dc2626;
+}
+
+.pro-modal-btn-confirm.turning-off:hover {
+  background: #b91c1c;
+}
+
+.pro-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.pro-modal-close:hover {
+  background: var(--border-light);
+  color: var(--text-primary);
+}
+
+@media (max-width: 600px) {
+  .pro-modal-container {
+    max-width: 100%;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    margin-top: auto;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .pro-modal-overlay {
+    align-items: flex-end !important;
+  }
+
+  .pro-modal-header { padding: 24px 20px 12px; }
+  .pro-modal-features { padding: 8px 20px 16px; }
+  .pro-modal-actions { padding: 12px 20px 20px; }
+  .pro-modal-divider { margin: 0 20px; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

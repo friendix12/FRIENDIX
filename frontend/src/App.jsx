@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { PresenceProvider } from './context/PresenceContext';
 import LoginPage from './pages/Auth/LoginPage';
 import SignupPage from './pages/Auth/SignupPage';
 import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
@@ -14,6 +15,8 @@ import GroupsPage from './pages/Groups/GroupsPage';
 import FriendsPage from './pages/Friends/FriendsPage';
 import SettingsPage from './pages/Settings/SettingsPage';
 import GamingPage from './pages/Gaming/GamingPage';
+import ProfessionalDashboard from './pages/Professional/ProfessionalDashboard';
+import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -63,6 +66,7 @@ const AppRoutes = () => {
       <Route path="/events" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
       <Route path="/feeds" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+      <Route path="/professional-dashboard" element={<ProtectedRoute><ProfessionalDashboard /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
 
       {/* 404 */}
@@ -73,11 +77,15 @@ const AppRoutes = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <PresenceProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </PresenceProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

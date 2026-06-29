@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import Navbar from '../../components/Navbar/Navbar';
+import ProfessionalModeModal from '../../components/ProfessionalModeModal/ProfessionalModeModal';
 import { useAuth } from '../../context/AuthContext';
 import {
   FiSettings, FiShield, FiLock, FiAlertTriangle, FiGlobe,
-  FiBell, FiUser, FiSmartphone, FiUserMinus, FiCheckCircle
+  FiBell, FiUser, FiSmartphone, FiUserMinus, FiCheckCircle, FiTrendingUp
 } from 'react-icons/fi';
+import { usersAPI } from '../../services/api';
 import './SettingsPage.css';
 
 const SECTIONS = [
   { id: 'general', label: 'General', icon: <FiUser size={18} /> },
+  { id: 'professional', label: 'Professional Mode', icon: <FiTrendingUp size={18} /> },
   { id: 'security', label: 'Security and login', icon: <FiShield size={18} /> },
   { id: 'privacy', label: 'Privacy settings', icon: <FiLock size={18} /> },
   { id: 'blocking', label: 'Blocking', icon: <FiUserMinus size={18} /> },
@@ -17,9 +20,12 @@ const SECTIONS = [
 ];
 
 const SettingsPage = () => {
-  const { currentUser, updateProfile } = useAuth();
+  const { currentUser, updateProfile, refreshUser } = useAuth();
   const [activeSec, setActiveSec] = useState('general');
   const [successMsg, setSuccessMsg] = useState('');
+  const [showProModal, setShowProModal] = useState(false);
+  const [proModalMode, setProModalMode] = useState('on');
+  const [proModalLoading, setProModalLoading] = useState(false);
 
   // General state
   const [generalForm, setGeneralForm] = useState({
@@ -83,6 +89,7 @@ const SettingsPage = () => {
   };
 
   return (
+    <>
     <div className="app-layout">
       <Navbar activePage="settings" />
 
@@ -183,6 +190,91 @@ const SettingsPage = () => {
                     Save Changes
                   </button>
                 </form>
+              </div>
+            )}
+
+            {/* Professional Mode Settings */}
+            {activeSec === 'professional' && (
+              <div className="settings-section-content animate-fadeIn">
+                <h3 className="settings-section-title">Professional Mode</h3>
+                <p style={{ fontSize: '0.87rem', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                  Professional Mode gives you access to insights, a public profile with a Follow button, and tools to grow your audience.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Toggle */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', borderBottom: '1px solid var(--border-light)' }}>
+                    <div style={{ flex: 1, paddingRight: '20px' }}>
+                      <p style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        {currentUser?.isProfessional ? 'Professional Mode is On' : 'Turn on Professional Mode'}
+                      </p>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {currentUser?.isProfessional
+                          ? 'Your profile is public. People can follow you to see your public posts.'
+                          : 'Make your profile public and get access to insights and analytics.'}
+                      </p>
+                    </div>
+                    <label className="switch-container">
+                      <input
+                        id="setting-professional-toggle"
+                        type="checkbox"
+                        checked={currentUser?.isProfessional || false}
+                        onChange={(e) => {
+                          const turningOn = e.target.checked;
+                          setProModalMode(turningOn ? 'on' : 'off');
+                          setShowProModal(true);
+                          e.target.checked = currentUser?.isProfessional || false;
+                        }}
+                      />
+                      <span className="switch-slider" />
+                    </label>
+                  </div>
+
+                  {/* Category */}
+                  {currentUser?.isProfessional && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', borderBottom: '1px solid var(--border-light)' }}>
+                      <div style={{ flex: 1, paddingRight: '20px' }}>
+                        <p style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '4px' }}>Profile Category</p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Choose the category that best describes your profile.</p>
+                      </div>
+                      <select
+                        id="setting-professional-category"
+                        className="form-input"
+                        style={{ width: '200px' }}
+                        value={currentUser?.profileCategory || 'Digital Creator'}
+                        onChange={async (e) => {
+                          try {
+                            await usersAPI.setCategory(e.target.value);
+                            await refreshUser();
+                            showSuccess('Category updated!');
+                          } catch (err) {
+                            console.error(err);
+                          }
+                        }}
+                      >
+                        {['Digital Creator', 'Gaming Creator', 'Music Artist', 'Public Figure', 'Educator', 'Business', 'Health & Fitness'].map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Dashboard Link */}
+                  {currentUser?.isProfessional && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ flex: 1, paddingRight: '20px' }}>
+                        <p style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '4px' }}>Professional Dashboard</p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>View insights, top posts, and growth metrics.</p>
+                      </div>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => window.location.href = '/professional-dashboard'}
+                      >
+                        View Dashboard
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -424,6 +516,32 @@ const SettingsPage = () => {
         </main>
       </div>
     </div>
+    <ProfessionalModeModal
+      isOpen={showProModal}
+      onClose={() => { setShowProModal(false); setProModalLoading(false); }}
+      mode={proModalMode}
+      loading={proModalLoading}
+      onConfirm={async () => {
+        setProModalLoading(true);
+        try {
+          await usersAPI.toggleProfessional();
+        } catch (err) {
+          console.error('Toggle professional failed:', err);
+          alert('Failed to change professional mode. Please try again.');
+          setProModalLoading(false);
+          return;
+        }
+        setShowProModal(false);
+        setProModalLoading(false);
+        showSuccess(currentUser?.isProfessional ? 'Professional Mode turned off.' : 'Professional Mode turned on!');
+        try {
+          await refreshUser();
+        } catch (err) {
+          console.error('Refresh user failed:', err);
+        }
+      }}
+    />
+    </>
   );
 };
 

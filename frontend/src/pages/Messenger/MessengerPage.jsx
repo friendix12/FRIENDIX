@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import Navbar from '../../components/Navbar/Navbar';
 import { useAuth } from '../../context/AuthContext';
+import { usePresence } from '../../context/PresenceContext';
 import { messagesAPI, postsAPI } from '../../services/api';
-import { FiEdit, FiSettings, FiSearch, FiPhone, FiVideo, FiInfo, FiImage, FiSmile, FiSend, FiPaperclip, FiX } from 'react-icons/fi';
+import { FiEdit, FiSettings, FiSearch, FiPhone, FiVideo, FiInfo, FiImage, FiSmile, FiSend, FiPaperclip, FiX, FiArrowLeft } from 'react-icons/fi';
 import './MessengerPage.css';
 
 const EMOJI_CATEGORIES = [
@@ -16,6 +17,7 @@ const EMOJI_CATEGORIES = [
 
 const MessengerPage = () => {
   const { currentUser } = useAuth();
+  const { isOnline, trackUsers } = usePresence();
   const [activeChat, setActiveChat] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -29,10 +31,12 @@ const MessengerPage = () => {
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
 
-  const contacts = currentUser?.friends || [];
+  const contacts = (currentUser?.friends || []).filter(f => f && typeof f === 'object');
   const filteredContacts = contacts.filter(u =>
-    u.fullName.toLowerCase().includes(search.toLowerCase())
+    (u.fullName || '').toLowerCase().includes(search.toLowerCase())
   );
+
+  const [mobileShowChat, setMobileShowChat] = useState(false);
 
   const fetchChatMessages = async (userId) => {
     try {
@@ -63,6 +67,11 @@ const MessengerPage = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const ids = contacts.map(c => c._id || c.id).filter(Boolean);
+    if (ids.length > 0) trackUsers(ids);
+  }, [contacts, trackUsers]);
 
   const handleDeleteMessage = async (msgId) => {
     if (!window.confirm('Delete this message?')) return;
@@ -135,7 +144,7 @@ const MessengerPage = () => {
   return (
     <div className="app-layout">
       <Navbar activePage="messenger" />
-      <div className="messenger-layout">
+      <div className={`messenger-layout ${mobileShowChat && activeChat ? 'mobile-show-chat' : ''}`}>
         <div className="messenger-sidebar" id="messenger-sidebar">
           <div className="messenger-sidebar-header">
             <h2 className="messenger-title">Chats</h2>
@@ -153,18 +162,18 @@ const MessengerPage = () => {
               const userId = user._id || user.id;
               const isActive = activeChat && (activeChat._id || activeChat.id) === userId;
               return (
-                <div key={userId} className={`contact-list-item ${isActive ? 'active' : ''}`} onClick={() => setActiveChat(user)} id={`contact-${userId}`}>
+                <div key={userId} className={`contact-list-item ${isActive ? 'active' : ''}`} onClick={() => { setActiveChat(user); setMobileShowChat(true); }} id={`contact-${userId}`}>
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                     {user.avatar ? (
                       <img src={user.avatar} alt={user.fullName} className="avatar avatar-lg" />
                     ) : (
                       <div className="avatar-placeholder avatar-lg">{user.firstName?.[0]}{user.lastName?.[0]}</div>
                     )}
-                    <span className="online-dot" />
+                    <span className={`online-dot ${isOnline(userId) ? 'active' : ''}`} />
                   </div>
                   <div className="contact-info">
                     <p className="contact-list-name">{user.fullName}</p>
-                    <p className="contact-last-msg">Active now</p>
+                    <p className="contact-last-msg">{isOnline(userId) ? 'Active now' : 'Offline'}</p>
                   </div>
                 </div>
               );
@@ -182,17 +191,18 @@ const MessengerPage = () => {
             <>
               <div className="chat-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button className="chat-action-btn mobile-back-btn" onClick={() => setMobileShowChat(false)}><FiArrowLeft size={18} /></button>
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                     {activeChat.avatar ? (
                       <img src={activeChat.avatar} alt={activeChat.fullName} className="avatar avatar-md" />
                     ) : (
                       <div className="avatar-placeholder avatar-md">{activeChat.firstName?.[0]}{activeChat.lastName?.[0]}</div>
                     )}
-                    <span className="online-dot" />
+                    <span className={`online-dot ${isOnline(activeChat._id || activeChat.id) ? 'active' : ''}`} />
                   </div>
                   <div>
                     <p className="chat-user-name">{activeChat.fullName}</p>
-                    <p className="chat-user-status">Active now</p>
+                    <p className="chat-user-status">{isOnline(activeChat._id || activeChat.id) ? 'Active now' : 'Offline'}</p>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>

@@ -59,7 +59,7 @@ const FriendsPage = () => {
       }, 1500);
     } catch (err) {
       console.error(err);
-      alert('রিকোয়েস্ট গ্রহণ করা যায়নি।');
+      alert('Failed to accept request.');
     }
   };
 
@@ -70,7 +70,7 @@ const FriendsPage = () => {
       updateProfile({ friendRequests: updatedRequests });
     } catch (err) {
       console.error(err);
-      alert('রিকোয়েস্ট বাতিল করা যায়নি।');
+      alert('Failed to cancel request.');
     }
   };
 
@@ -80,7 +80,7 @@ const FriendsPage = () => {
       setSentRequests(prev => ({ ...prev, [id]: true }));
     } catch (err) {
       console.error(err);
-      alert('রিকোয়েস্ট পাঠানো যায়নি।');
+      alert('Failed to send request.');
     }
   };
 
@@ -92,7 +92,7 @@ const FriendsPage = () => {
       updateProfile({ friends: updatedFriends });
     } catch (err) {
       console.error(err);
-      alert('আনফ্রেন্ড করা যায়নি।');
+      alert('Failed to unfriend.');
     }
   };
 

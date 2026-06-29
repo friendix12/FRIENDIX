@@ -82,12 +82,12 @@ const CreateReelModal = ({ isOpen, onClose, onUpload }) => {
         uploadRes.url
       );
 
-      alert('রিলটি সফলভাবে আপলোড করা হয়েছে!');
+      alert('Reel uploaded successfully!');
       onUpload();
       onClose();
     } catch (err) {
       console.error(err);
-      alert('রিল আপলোড করতে সমস্যা হয়েছে।');
+      alert('Failed to upload reel.');
     } finally {
       setPublishing(false);
     }

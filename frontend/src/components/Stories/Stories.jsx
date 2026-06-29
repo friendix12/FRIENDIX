@@ -36,7 +36,7 @@ const Stories = () => {
 
   // Automatically open story if navigated from profile ring click
   useEffect(() => {
-    if (location.state?.openStoryForUser && activeStories.length > 0) {
+    if (location.state?.openStoryForUser && localStories.length > 0) {
       const targetUserId = location.state.openStoryForUser;
       const targetStory = activeStories.find(s => s.authorId?.toString() === targetUserId.toString());
       if (targetStory) {
@@ -44,7 +44,7 @@ const Stories = () => {
       }
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, activeStories]);
+  }, [location.state]);
 
   useEffect(() => {
     const fetchDBStories = async () => {
@@ -108,7 +108,7 @@ const Stories = () => {
     if (activeStories.length > 0) {
       fetchAvatars();
     }
-  }, [localStories]);
+  }, [localStories.length]);
 
   // Floating emojis state
   const [floatingEmojis, setFloatingEmojis] = useState([]);

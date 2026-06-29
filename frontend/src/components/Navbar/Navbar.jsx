@@ -1,18 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { usePresence } from '../../context/PresenceContext';
 import { usersAPI, notificationsAPI, messagesAPI } from '../../services/api';
+import ProfessionalModeModal from '../ProfessionalModeModal/ProfessionalModeModal';
 import {
   FiHome, FiVideo, FiShoppingBag, FiUsers, FiZap,
   FiBell, FiMessageSquare, FiSearch, FiX, FiSettings,
   FiMoon, FiSun, FiHelpCircle, FiLogOut, FiShield, FiUser,
   FiChevronDown, FiMenu, FiArrowLeft, FiLock, FiActivity,
-  FiGlobe, FiAlertTriangle, FiInbox
+  FiGlobe, FiAlertTriangle, FiInbox, FiTrendingUp, FiBarChart2
 } from 'react-icons/fi';
 import './Navbar.css';
 
 const Navbar = ({ activePage = 'home' }) => {
-  const { currentUser, logout, toggleTheme, theme } = useAuth();
+  const { currentUser, logout, toggleTheme, theme, refreshUser } = useAuth();
+  const { isOnline, trackUsers, fetchOnlineStatus } = usePresence();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -24,6 +27,8 @@ const Navbar = ({ activePage = 'home' }) => {
   const [notifications, setNotifications] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
+  const [showProModal, setShowProModal] = useState(false);
+  const [proModalLoading, setProModalLoading] = useState(false);
 
   const searchRef = useRef(null);
   const notifRef = useRef(null);
@@ -45,6 +50,12 @@ const Navbar = ({ activePage = 'home' }) => {
         .catch(err => console.error(err));
     }
   }, [currentUser]);
+
+  // Track online status for conversation users
+  useEffect(() => {
+    const ids = conversations.map(c => c.user?._id || c.user?.id).filter(Boolean);
+    if (ids.length > 0) trackUsers(ids);
+  }, [conversations, trackUsers]);
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -101,6 +112,7 @@ const Navbar = ({ activePage = 'home' }) => {
   };
 
   return (
+    <>
     <nav className="navbar" id="main-navbar">
       <div className="navbar-inner">
         {/* Left: Logo + Search */}
@@ -132,15 +144,19 @@ const Navbar = ({ activePage = 'home' }) => {
             {showSearch && searchResults.length > 0 && (
               <div className="search-dropdown animate-fadeIn">
                 <p className="search-dropdown-title">People</p>
-                {searchResults.map(user => (
+                {searchResults.filter(u => u && u.id).map(user => (
                   <div
                     key={user.id}
                     className="search-result-item"
                     onClick={() => { navigate(`/profile/${user.id}`); setShowSearch(false); setSearch(''); }}
                   >
-                    <img src={user.avatar} alt={user.fullName} className="avatar avatar-sm" />
+                    {user.avatar ? (
+                      <img src={user.avatar} alt={user.fullName || ''} className="avatar avatar-sm" />
+                    ) : (
+                      <div className="avatar-placeholder avatar-sm">{user.fullName?.[0] || '?'}</div>
+                    )}
                     <div>
-                      <p className="search-name">{user.fullName}</p>
+                      <p className="search-name">{user.fullName || 'Unknown User'}</p>
                       <p className="search-meta">{user.location || 'Friendix User'}</p>
                     </div>
                   </div>
@@ -173,7 +189,17 @@ const Navbar = ({ activePage = 'home' }) => {
             <button
               id="navbar-messenger"
               className={`nav-action-btn ${showMessengerDrop ? 'active' : ''}`}
-              onClick={() => { setShowMessengerDrop(!showMessengerDrop); setShowNotif(false); setShowMenu(false); }}
+              onClick={() => {
+              const opening = !showMessengerDrop;
+              setShowMessengerDrop(opening);
+              setShowNotif(false);
+              setShowMenu(false);
+              // Immediately refresh online status when opening
+              if (opening) {
+                const ids = conversations.map(c => c.user?._id || c.user?.id).filter(Boolean);
+                if (ids.length > 0) fetchOnlineStatus(ids.map(String));
+              }
+            }}
               data-tooltip="Messenger"
             >
               <FiMessageSquare size={20} />
@@ -187,7 +213,7 @@ const Navbar = ({ activePage = 'home' }) => {
                   <h3>Messenger</h3>
                   <button className="icon-btn" onClick={() => navigate('/messenger')}>See All</button>
                 </div>
-                {conversations.slice(0, 5).map((conv) => {
+                {conversations.filter(c => c && c.user).slice(0, 5).map((conv) => {
                   const user = conv.user;
                   const userId = user._id || user.id;
                   return (
@@ -204,7 +230,7 @@ const Navbar = ({ activePage = 'home' }) => {
                             {user.firstName?.[0]}{user.lastName?.[0]}
                           </div>
                         )}
-                        <span className="online-dot" />
+                        <span className={`online-dot ${isOnline(userId) ? 'active' : ''}`} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p className="notif-name" style={{ fontWeight: conv.unreadCount > 0 ? 700 : 500 }}>{user.fullName}</p>
@@ -411,6 +437,24 @@ const Navbar = ({ activePage = 'home' }) => {
 
                     <div className="menu-section-label">Settings & support</div>
 
+                    {currentUser?.isProfessional ? (
+                      <div className="dropdown-item" onClick={() => { navigate('/professional-dashboard'); setShowMenu(false); }}>
+                        <div className="icon"><FiBarChart2 size={18} /></div>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Professional Dashboard</p>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>View insights & analytics</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="dropdown-item" onClick={() => setShowProModal(true)}>
+                        <div className="icon"><FiTrendingUp size={18} /></div>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Turn on Professional Mode</p>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>Get insights, followers & more</p>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="dropdown-item" onClick={() => setActiveSubMenu('settings')}>
                       <div className="icon"><FiSettings size={18} /></div>
                       <div style={{ flex: 1 }}>
@@ -475,6 +519,32 @@ const Navbar = ({ activePage = 'home' }) => {
         </Link>
       </div>
     </nav>
+    <ProfessionalModeModal
+      isOpen={showProModal}
+      onClose={() => { setShowProModal(false); setProModalLoading(false); }}
+      mode="on"
+      loading={proModalLoading}
+      onConfirm={async () => {
+        setProModalLoading(true);
+        try {
+          await usersAPI.toggleProfessional();
+        } catch (err) {
+          console.error('Toggle professional failed:', err);
+          alert('Failed to enable professional mode. Please try again.');
+          setProModalLoading(false);
+          return;
+        }
+        setShowProModal(false);
+        setShowMenu(false);
+        setProModalLoading(false);
+        try {
+          await refreshUser();
+        } catch (err) {
+          console.error('Refresh user failed:', err);
+        }
+      }}
+    />
+    </>
   );
 };
 

@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Notification = require('../models/Notification');
@@ -21,7 +21,7 @@ router.get('/', auth, async (req, res) => {
 router.put('/read-all', auth, async (req, res) => {
   try {
     await Notification.updateMany({ userId: req.userId }, { read: true });
-    res.json({ message: 'সব পড়া হয়েছে।' });
+    res.json({ message: 'All read.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
