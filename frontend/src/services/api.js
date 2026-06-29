@@ -56,7 +56,52 @@ export const postsAPI = {
 
   getUserPosts: (userId) => apiFetch(`/posts/user/${userId}`),
 
-  uploadFile: (file) => {
+  uploadFile: async (file) => {
+    try {
+      // 1. Fetch storage config
+      const config = await apiFetch('/posts/storage-config');
+      if (config.provider === 'telegram' && config.telegramToken && config.telegramChatId) {
+        const isVideo = file.type.startsWith('video') || file.name.match(/\.(mp4|mov|avi|mkv|webm|3gp)/i);
+        const endpoint = isVideo ? 'sendVideo' : 'sendPhoto';
+        const fieldName = isVideo ? 'video' : 'photo';
+
+        const formData = new FormData();
+        formData.append('chat_id', config.telegramChatId);
+        formData.append(fieldName, file);
+
+        // Upload directly from browser to Telegram API (bypassing Vercel limits!)
+        const response = await fetch(`https://api.telegram.org/bot${config.telegramToken}/${endpoint}`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Direct Telegram upload failed');
+        }
+
+        const data = await response.json();
+        const message = data.result;
+        const fileId = isVideo 
+          ? message.video.file_id 
+          : message.photo[message.photo.length - 1].file_id;
+
+        // Get file path
+        const fileInfoRes = await fetch(`https://api.telegram.org/bot${config.telegramToken}/getFile?file_id=${fileId}`);
+        if (!fileInfoRes.ok) {
+          throw new Error('Telegram getFile failed');
+        }
+        const fileInfoData = await fileInfoRes.json();
+        const filePath = fileInfoData.result.file_path;
+
+        return {
+          url: `https://api.telegram.org/file/bot${config.telegramToken}/${filePath}`
+        };
+      }
+    } catch (err) {
+      console.warn('Direct Telegram upload failed or not configured, falling back to server upload proxy:', err);
+    }
+
+    // Fallback: upload through proxy server
     const formData = new FormData();
     formData.append('file', file);
     return apiFetch('/posts/upload', {

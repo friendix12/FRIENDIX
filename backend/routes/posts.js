@@ -9,6 +9,15 @@ const Notification = require('../models/Notification');
 const { uploadToCloudinary } = require('../utils/cloudinaryUpload');
 const { uploadToTelegram } = require('../utils/telegramUpload');
 
+// GET /api/posts/storage-config — get storage configuration credentials
+router.get('/storage-config', auth, (req, res) => {
+  res.json({
+    provider: process.env.STORAGE_PROVIDER || 'telegram',
+    telegramToken: process.env.TELEGRAM_BOT_TOKEN || '8973841556:AAFgx0uuRvDnp13-NZ29XNwqMKrFQfNQI2A',
+    telegramChatId: process.env.TELEGRAM_CHAT_ID || '-1003680485341'
+  });
+});
+
 // POST /api/posts/upload — upload file (image or video)
 router.post('/upload', auth, upload.single('file'), async (req, res) => {
   try {
