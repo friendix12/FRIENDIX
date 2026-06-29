@@ -571,3 +571,20 @@
   box-shadow: 0 12px 36px rgba(0,0,0,0.5);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* Visibility badge on story card */
+.story-visibility-badge {
+  position: absolute;
+  bottom: 36px;
+  left: 8px;
+  width: 18px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  z-index: 3;
+}
+

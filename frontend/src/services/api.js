@@ -276,6 +276,9 @@ export const storiesAPI = {
   viewStory: (storyId) => apiFetch(`/stories/${storyId}/view`, {
     method: 'POST',
   }),
+  deleteStory: (storyId) => apiFetch(`/stories/${storyId}`, {
+    method: 'DELETE',
+  }),
 };
 
 export default { authAPI, postsAPI, usersAPI, messagesAPI, notificationsAPI, adminAPI, productsAPI, groupsAPI, storiesAPI, presenceAPI };
