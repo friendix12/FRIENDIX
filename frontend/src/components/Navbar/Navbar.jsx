@@ -144,23 +144,27 @@ const Navbar = ({ activePage = 'home' }) => {
             {showSearch && searchResults.length > 0 && (
               <div className="search-dropdown animate-fadeIn">
                 <p className="search-dropdown-title">People</p>
-                {searchResults.filter(u => u && u.id).map(user => (
-                  <div
-                    key={user.id}
-                    className="search-result-item"
-                    onClick={() => { navigate(`/profile/${user.id}`); setShowSearch(false); setSearch(''); }}
-                  >
-                    {user.avatar ? (
-                      <img src={user.avatar} alt={user.fullName || ''} className="avatar avatar-sm" />
-                    ) : (
-                      <div className="avatar-placeholder avatar-sm">{user.fullName?.[0] || '?'}</div>
-                    )}
-                    <div>
-                      <p className="search-name">{user.fullName || 'Unknown User'}</p>
-                      <p className="search-meta">{user.location || 'Friendix User'}</p>
+                {searchResults.map(user => {
+                  const userId = user._id || user.id;
+                  if (!userId) return null;
+                  return (
+                    <div
+                      key={userId}
+                      className="search-result-item"
+                      onClick={() => { navigate(`/profile/${userId}`); setShowSearch(false); setSearch(''); }}
+                    >
+                      {user.avatar ? (
+                        <img src={user.avatar} alt={user.fullName || ''} className="avatar avatar-sm" />
+                      ) : (
+                        <div className="avatar-placeholder avatar-sm">{user.fullName?.[0] || '?'}</div>
+                      )}
+                      <div>
+                        <p className="search-name">{user.fullName || 'Unknown User'}</p>
+                        <p className="search-meta">{user.location || 'Friendix User'}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
