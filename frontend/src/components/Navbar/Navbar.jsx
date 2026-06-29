@@ -1,0 +1,395 @@
+import { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { mockUsers, mockNotifications } from '../../data/mockData';
+import {
+  FiHome, FiVideo, FiShoppingBag, FiUsers, FiZap,
+  FiBell, FiMessageSquare, FiSearch, FiX, FiSettings,
+  FiMoon, FiSun, FiHelpCircle, FiLogOut, FiShield, FiUser,
+  FiChevronDown, FiMenu, FiArrowLeft, FiLock, FiActivity,
+  FiGlobe, FiAlertTriangle, FiInbox
+} from 'react-icons/fi';
+import './Navbar.css';
+
+const Navbar = ({ activePage = 'home' }) => {
+  const { currentUser, logout, toggleTheme, theme } = useAuth();
+  const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showNotif, setShowNotif] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showMessengerDrop, setShowMessengerDrop] = useState(false);
+  const [activeSubMenu, setActiveSubMenu] = useState(null); // 'settings', 'help', or null
+  const searchRef = useRef(null);
+  const notifRef = useRef(null);
+  const menuRef = useRef(null);
+  const messengerRef = useRef(null);
+
+  const unreadNotifCount = mockNotifications.filter(n => !n.read).length;
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) setShowSearch(false);
+      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false);
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowMenu(false);
+        setActiveSubMenu(null);
+      }
+      if (messengerRef.current && !messengerRef.current.contains(e.target)) setShowMessengerDrop(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const handleSearch = (val) => {
+    setSearch(val);
+    if (val.trim()) {
+      const results = mockUsers.filter(u =>
+        u.fullName.toLowerCase().includes(val.toLowerCase()) && u.id !== currentUser?.id
+      ).slice(0, 5);
+      setSearchResults(results);
+      setShowSearch(true);
+    } else {
+      setSearchResults([]);
+      setShowSearch(false);
+    }
+  };
+
+  const NAV_TABS = [
+    { id: 'home', Icon: FiHome, label: 'Home', path: '/' },
+    { id: 'watch', Icon: FiVideo, label: 'Watch', path: '/watch' },
+    { id: 'marketplace', Icon: FiShoppingBag, label: 'Marketplace', path: '/marketplace' },
+    { id: 'groups', Icon: FiUsers, label: 'Groups', path: '/groups' },
+    { id: 'gaming', Icon: FiZap, label: 'Gaming', path: '/gaming' },
+  ];
+
+  const getNotifIcon = (type) => {
+    const map = { like: '👍', comment: '💬', friend_request: '👤', birthday: '🎂' };
+    return map[type] || '🔔';
+  };
+
+  return (
+    <nav className="navbar" id="main-navbar">
+      <div className="navbar-inner">
+        {/* Left: Logo + Search */}
+        <div className="navbar-left">
+          <Link to="/" className="navbar-logo" id="navbar-logo">
+            <img src="/friendix-logo.svg" alt="Friendix" className="navbar-logo-img" />
+            <span className="navbar-logo-text">friendix</span>
+          </Link>
+
+          <div className="navbar-search-wrap" ref={searchRef}>
+            <div className="navbar-search">
+              <FiSearch className="search-icon" />
+              <input
+                id="navbar-search-input"
+                type="text"
+                placeholder="Search Friendix"
+                value={search}
+                onChange={(e) => handleSearch(e.target.value)}
+                onFocus={() => search && setShowSearch(true)}
+                className="search-input"
+              />
+              {search && (
+                <button className="search-clear" onClick={() => { setSearch(''); setSearchResults([]); setShowSearch(false); }}>
+                  <FiX size={14} />
+                </button>
+              )}
+            </div>
+
+            {showSearch && searchResults.length > 0 && (
+              <div className="search-dropdown animate-fadeIn">
+                <p className="search-dropdown-title">People</p>
+                {searchResults.map(user => (
+                  <div
+                    key={user.id}
+                    className="search-result-item"
+                    onClick={() => { navigate(`/profile/${user.id}`); setShowSearch(false); setSearch(''); }}
+                  >
+                    <img src={user.avatar} alt={user.fullName} className="avatar avatar-sm" />
+                    <div>
+                      <p className="search-name">{user.fullName}</p>
+                      <p className="search-meta">{user.location || 'Friendix User'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Center: Nav Tabs */}
+        <div className="navbar-center">
+          {NAV_TABS.map(tab => (
+            <Link
+              key={tab.id}
+              to={tab.path}
+              id={`nav-tab-${tab.id}`}
+              className={`nav-tab ${activePage === tab.id ? 'active' : ''}`}
+              data-tooltip={tab.label}
+            >
+              <tab.Icon size={22} />
+              <span className="nav-tab-label">{tab.label}</span>
+            </Link>
+          ))}
+        </div>
+
+        {/* Right: Action Buttons */}
+        <div className="navbar-right">
+          {/* Messenger */}
+          <div ref={messengerRef} style={{ position: 'relative' }}>
+            <button
+              id="navbar-messenger"
+              className={`nav-action-btn ${showMessengerDrop ? 'active' : ''}`}
+              onClick={() => { setShowMessengerDrop(!showMessengerDrop); setShowNotif(false); setShowMenu(false); }}
+              data-tooltip="Messenger"
+            >
+              <FiMessageSquare size={20} />
+            </button>
+            {showMessengerDrop && (
+              <div className="navbar-dropdown animate-fadeIn" style={{ width: '360px' }}>
+                <div className="dropdown-header">
+                  <h3>Messenger</h3>
+                  <button className="icon-btn" onClick={() => navigate('/messenger')}>See All</button>
+                </div>
+                {mockUsers.filter(u => u.id !== currentUser?.id).slice(0, 4).map((user, i) => (
+                  <div key={user.id} className="notif-item" onClick={() => { navigate('/messenger'); setShowMessengerDrop(false); }}>
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      <img src={user.avatar} alt={user.fullName} className="avatar avatar-md" />
+                      {i < 3 && <span className="online-dot" />}
+                    </div>
+                    <div>
+                      <p className="notif-name">{user.fullName}</p>
+                      <p className="notif-time" style={{ color: i < 3 ? 'var(--online)' : 'var(--text-secondary)' }}>
+                        {i < 3 ? 'Active now' : `${i + 1}h ago`}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                <div className="see-all-btn-wrap">
+                  <button className="see-all-btn" onClick={() => { navigate('/messenger'); setShowMessengerDrop(false); }}>
+                    Open Messenger
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Notifications */}
+          <div ref={notifRef} style={{ position: 'relative' }}>
+            <button
+              id="navbar-notifications"
+              className={`nav-action-btn ${showNotif ? 'active' : ''}`}
+              onClick={() => { setShowNotif(!showNotif); setShowMenu(false); setShowMessengerDrop(false); }}
+              data-tooltip="Notifications"
+            >
+              <FiBell size={20} />
+              {unreadNotifCount > 0 && (
+                <span className="badge nav-badge">{unreadNotifCount}</span>
+              )}
+            </button>
+
+            {showNotif && (
+              <div className="navbar-dropdown animate-fadeIn">
+                <div className="dropdown-header">
+                  <h3>Notifications</h3>
+                  <button className="icon-btn">Mark all as read</button>
+                </div>
+                <p className="notif-section-label">New</p>
+                {mockNotifications.map(n => (
+                  <div key={n.id} className={`notif-item ${!n.read ? 'unread' : ''}`}>
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      <img
+                        src={mockUsers.find(u => u.id === n.fromUserId)?.avatar}
+                        alt=""
+                        className="avatar avatar-md"
+                      />
+                      <span className="notif-type-icon">{getNotifIcon(n.type)}</span>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p className="notif-text">{n.messageEn || n.message}</p>
+                      <p className="notif-time" style={{ color: n.read ? 'var(--text-secondary)' : 'var(--primary)' }}>
+                        {n.read ? '2 hours ago' : 'Just now'}
+                      </p>
+                    </div>
+                    {!n.read && <span className="notif-unread-dot" />}
+                  </div>
+                ))}
+                <div className="see-all-btn-wrap">
+                  <button className="see-all-btn" onClick={() => { navigate('/notifications'); setShowNotif(false); }}>
+                    See all notifications
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Profile Menu */}
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button
+              id="navbar-profile-menu"
+              className="nav-profile-btn"
+              onClick={() => { setShowMenu(!showMenu); setShowNotif(false); setShowMessengerDrop(false); }}
+            >
+              {currentUser?.avatar ? (
+                <img src={currentUser.avatar} alt={currentUser.fullName} className="avatar avatar-sm" />
+              ) : (
+                <div className="avatar-placeholder avatar-sm">
+                  {currentUser?.firstName?.[0]}{currentUser?.lastName?.[0]}
+                </div>
+              )}
+            </button>
+
+            {showMenu && (
+              <div className="navbar-dropdown animate-fadeIn" style={{ width: '320px' }}>
+                {activeSubMenu === 'settings' ? (
+                  <>
+                    <div className="submenu-header" onClick={() => setActiveSubMenu(null)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border-light)', marginBottom: '8px' }}>
+                      <button className="back-btn" style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-hover)', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                        <FiArrowLeft size={18} />
+                      </button>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>Settings & privacy</h3>
+                    </div>
+                    
+                    <div className="dropdown-item" onClick={() => { navigate('/settings'); setShowMenu(false); setActiveSubMenu(null); }}>
+                      <div className="icon" style={{ background: 'var(--bg-hover)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}><FiSettings size={18} /></div>
+                      <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Settings</p>
+                    </div>
+
+                    <div className="dropdown-item" onClick={() => { setShowMenu(false); setActiveSubMenu(null); }}>
+                      <div className="icon" style={{ background: 'var(--bg-hover)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}><FiLock size={18} /></div>
+                      <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Privacy Checkup</p>
+                    </div>
+
+                    <div className="dropdown-item" onClick={() => { setShowMenu(false); setActiveSubMenu(null); }}>
+                      <div className="icon" style={{ background: 'var(--bg-hover)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}><FiShield size={18} /></div>
+                      <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Privacy Center</p>
+                    </div>
+
+                    <div className="dropdown-item" onClick={() => { setShowMenu(false); setActiveSubMenu(null); }}>
+                      <div className="icon" style={{ background: 'var(--bg-hover)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}><FiActivity size={18} /></div>
+                      <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Activity Log</p>
+                    </div>
+
+                    <div className="dropdown-item" onClick={() => { setShowMenu(false); setActiveSubMenu(null); }}>
+                      <div className="icon" style={{ background: 'var(--bg-hover)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}><FiMenu size={18} /></div>
+                      <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Feed Preferences</p>
+                    </div>
+
+                    <div className="dropdown-item" onClick={() => { setShowMenu(false); setActiveSubMenu(null); }}>
+                      <div className="icon" style={{ background: 'var(--bg-hover)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}><FiGlobe size={18} /></div>
+                      <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Language</p>
+                    </div>
+                  </>
+                ) : activeSubMenu === 'help' ? (
+                  <>
+                    <div className="submenu-header" onClick={() => setActiveSubMenu(null)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border-light)', marginBottom: '8px' }}>
+                      <button className="back-btn" style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-hover)', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                        <FiArrowLeft size={18} />
+                      </button>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>Help & support</h3>
+                    </div>
+
+                    <div className="dropdown-item" onClick={() => { navigate('/help'); setShowMenu(false); setActiveSubMenu(null); }}>
+                      <div className="icon" style={{ background: 'var(--bg-hover)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}><FiHelpCircle size={18} /></div>
+                      <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Help Center</p>
+                    </div>
+
+                    <div className="dropdown-item" onClick={() => { setShowMenu(false); setActiveSubMenu(null); }}>
+                      <div className="icon" style={{ background: 'var(--bg-hover)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}><FiInbox size={18} /></div>
+                      <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Support Inbox</p>
+                    </div>
+
+                    <div className="dropdown-item" onClick={() => { setShowMenu(false); setActiveSubMenu(null); }}>
+                      <div className="icon" style={{ background: 'var(--bg-hover)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}><FiAlertTriangle size={18} /></div>
+                      <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Report a Problem</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="menu-profile-card" onClick={() => { navigate(`/profile/${currentUser?.id}`); setShowMenu(false); }}>
+                      {currentUser?.avatar ? (
+                        <img src={currentUser.avatar} alt={currentUser.fullName} className="avatar avatar-md" />
+                      ) : (
+                        <div className="avatar-placeholder avatar-md">
+                          {currentUser?.firstName?.[0]}{currentUser?.lastName?.[0]}
+                        </div>
+                      )}
+                      <div>
+                        <p className="menu-name">{currentUser?.fullName}</p>
+                        <p className="menu-view-profile">See your profile</p>
+                      </div>
+                    </div>
+                    <div className="dropdown-divider" />
+
+                    <div className="menu-section-label">Settings & support</div>
+
+                    <div className="dropdown-item" onClick={() => setActiveSubMenu('settings')}>
+                      <div className="icon"><FiSettings size={18} /></div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Settings & privacy</p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>Privacy, security and more</p>
+                      </div>
+                      <FiChevronDown size={16} style={{ transform: 'rotate(-90deg)', color: 'var(--text-secondary)' }} />
+                    </div>
+
+                    <div className="dropdown-item" onClick={toggleTheme}>
+                      <div className="icon">{theme === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}</div>
+                      <div>
+                        <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Display & accessibility</p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                          {theme === 'light' ? 'Turn on Dark Mode' : 'Turn on Light Mode'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="dropdown-item" onClick={() => setActiveSubMenu('help')}>
+                      <div className="icon"><FiHelpCircle size={18} /></div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Help & support</p>
+                      </div>
+                      <FiChevronDown size={16} style={{ transform: 'rotate(-90deg)', color: 'var(--text-secondary)' }} />
+                    </div>
+
+                    <div className="dropdown-divider" />
+                    <div className="dropdown-item" id="logout-btn" onClick={() => { logout(); navigate('/login'); }}>
+                      <div className="icon"><FiLogOut size={18} /></div>
+                      <p style={{ fontWeight: 600, fontSize: '0.93rem', margin: 0 }}>Log out</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Navbar */}
+      <div className="mobile-navbar">
+        {NAV_TABS.map(tab => (
+          <Link
+            key={tab.id}
+            to={tab.path}
+            className={`mobile-nav-item ${activePage === tab.id ? 'active' : ''}`}
+          >
+            <tab.Icon size={22} />
+            <span className="mobile-nav-label">{tab.label}</span>
+          </Link>
+        ))}
+        <Link
+          to="/notifications"
+          className={`mobile-nav-item ${activePage === 'notifications' ? 'active' : ''}`}
+        >
+          <div style={{ position: 'relative' }}>
+            <FiBell size={22} />
+            {unreadNotifCount > 0 && <span className="badge" style={{ position: 'absolute', top: '-6px', right: '-6px', minWidth: '16px', height: '16px', fontSize: '0.7rem' }}>{unreadNotifCount}</span>}
+          </div>
+          <span className="mobile-nav-label">Alerts</span>
+        </Link>
+      </div>
+    </nav>
+  );
+};
+
+export default Navbar;

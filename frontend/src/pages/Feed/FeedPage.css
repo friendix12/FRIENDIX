@@ -1,0 +1,93 @@
+/* ============================================
+   FRIENDIX — Feed Page & App Layout CSS
+   ============================================ */
+
+/* ===== APP LAYOUT BASE ===== */
+.app-layout {
+  min-height: 100vh;
+  background: var(--bg-base);
+}
+
+/* ===== FEED LAYOUT ===== */
+.feed-layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr var(--right-sidebar-width);
+  min-height: 100vh;
+  padding-top: var(--navbar-height);
+}
+
+.feed-main {
+  grid-column: 2;
+  padding: 16px;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  min-height: calc(100vh - var(--navbar-height));
+}
+
+.right-sidebar {
+  grid-column: 3;
+}
+
+.posts-feed {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== PAGE LAYOUT (for Profile, Notifications etc.) ===== */
+.page-layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  min-height: 100vh;
+  padding-top: var(--navbar-height);
+}
+
+.page-main {
+  padding: 0;
+  min-height: calc(100vh - var(--navbar-height));
+  max-width: 100%;
+}
+
+/* ===== SIMPLE LAYOUT (full-width pages) ===== */
+.simple-layout {
+  padding-top: var(--navbar-height);
+  min-height: 100vh;
+}
+
+.simple-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px 16px 80px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1200px) {
+  .feed-layout {
+    grid-template-columns: var(--sidebar-width) 1fr 280px;
+  }
+}
+
+@media (max-width: 960px) {
+  .feed-layout {
+    grid-template-columns: var(--sidebar-width) 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .feed-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .page-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .feed-main {
+    grid-column: 1;
+    padding: 8px 8px 80px;
+  }
+
+  .simple-content {
+    padding: 12px 8px 80px;
+  }
+}
