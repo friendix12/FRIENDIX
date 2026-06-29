@@ -1,75 +1,117 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar/Navbar';
+import { useAuth } from '../../context/AuthContext';
+import { groupsAPI, postsAPI } from '../../services/api';
 import { FiUsers, FiGlobe, FiLock, FiX, FiCheck, FiImage } from 'react-icons/fi';
 
-const INITIAL_GROUPS = [
-  { id: 'g1', name: 'Bangladesh Photography', members: 12400, img: 'https://picsum.photos/seed/grp1/300/150', logo: 'https://picsum.photos/seed/logo1/50/50', privacy: 'Public', joined: false },
-  { id: 'g2', name: 'Tech Bangladesh', members: 45000, img: 'https://picsum.photos/seed/grp2/300/150', logo: 'https://picsum.photos/seed/logo2/50/50', privacy: 'Public', joined: false },
-  { id: 'g3', name: 'Cooking Recipes BD', members: 8700, img: 'https://picsum.photos/seed/grp3/300/150', logo: 'https://picsum.photos/seed/logo3/50/50', privacy: 'Private', joined: false },
-  { id: 'g4', name: 'Wanderlust Travelers', members: 32000, img: 'https://picsum.photos/seed/grp4/300/150', logo: 'https://picsum.photos/seed/logo4/50/50', privacy: 'Public', joined: false },
-  { id: 'g5', name: 'Startup Bangladesh', members: 18000, img: 'https://picsum.photos/seed/grp5/300/150', logo: 'https://picsum.photos/seed/logo5/50/50', privacy: 'Public', joined: false },
-  { id: 'g6', name: 'Book Club Members', members: 6200, img: 'https://picsum.photos/seed/grp6/300/150', logo: 'https://picsum.photos/seed/logo6/50/50', privacy: 'Private', joined: false },
-];
-
 const GroupsPage = () => {
-  const [groups, setGroups] = useState(INITIAL_GROUPS);
+  const { currentUser } = useAuth();
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   // File inputs state
+  const [coverFile, setCoverFile] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
   const [coverPreview, setCoverPreview] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
 
   const [newGroupForm, setNewGroupForm] = useState({
     name: '',
+    description: '',
     privacy: 'Public'
   });
 
-  const handleJoinToggle = (groupId) => {
-    setGroups(prev => prev.map(g => {
-      if (g.id === groupId) {
-        return {
-          ...g,
-          joined: !g.joined,
-          members: g.joined ? g.members - 1 : g.members + 1
-        };
+  const fetchGroups = async () => {
+    try {
+      setLoading(true);
+      const data = await groupsAPI.getAll();
+      setGroups(data.groups || []);
+    } catch (err) {
+      console.error('Failed to load groups:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGroups();
+  }, []);
+
+  const handleJoinToggle = async (group) => {
+    const groupId = group._id || group.id;
+    const isJoined = group.members.includes(currentUser?.id || currentUser?._id);
+    
+    try {
+      if (isJoined) {
+        await groupsAPI.leave(groupId);
+      } else {
+        await groupsAPI.join(groupId);
       }
-      return g;
-    }));
+      fetchGroups();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleFileChange = (e, type) => {
     const file = e.target.files[0];
     if (file) {
       const url = URL.createObjectURL(file);
-      if (type === 'cover') setCoverPreview(url);
-      if (type === 'logo') setLogoPreview(url);
+      if (type === 'cover') {
+        setCoverFile(file);
+        setCoverPreview(url);
+      }
+      if (type === 'logo') {
+        setLogoFile(file);
+        setLogoPreview(url);
+      }
     }
   };
 
-  const handleCreateGroup = (e) => {
+  const handleCreateGroup = async (e) => {
     e.preventDefault();
     if (!newGroupForm.name.trim()) return;
 
-    const newGroup = {
-      id: `g_${Date.now()}`,
-      name: newGroupForm.name.trim(),
-      members: 1,
-      img: coverPreview || 'https://picsum.photos/seed/default/300/150',
-      logo: logoPreview || 'https://picsum.photos/seed/logo/50/50',
-      privacy: newGroupForm.privacy,
-      joined: true
-    };
+    try {
+      setSubmitting(true);
+      
+      let coverUrl = '';
+      let logoUrl = '';
 
-    setGroups([newGroup, ...groups]);
-    setShowCreateModal(false);
-    setNewGroupForm({ name: '', privacy: 'Public' });
-    setCoverPreview(null);
-    setLogoPreview(null);
-  };
+      if (coverFile) {
+        const coverRes = await postsAPI.uploadFile(coverFile);
+        coverUrl = coverRes.url;
+      }
 
-  const formatMembers = (num) => {
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
+      if (logoFile) {
+        const logoRes = await postsAPI.uploadFile(logoFile);
+        logoUrl = logoRes.url;
+      }
+
+      await groupsAPI.create({
+        name: newGroupForm.name.trim(),
+        description: newGroupForm.description.trim(),
+        privacy: newGroupForm.privacy,
+        cover: coverUrl,
+        logo: logoUrl
+      });
+
+      setShowCreateModal(false);
+      setNewGroupForm({ name: '', description: '', privacy: 'Public' });
+      setCoverFile(null);
+      setLogoFile(null);
+      setCoverPreview(null);
+      setLogoPreview(null);
+      
+      fetchGroups();
+    } catch (err) {
+      console.error(err);
+      alert('গ্রুপ তৈরি করতে সমস্যা হয়েছে।');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -93,45 +135,67 @@ const GroupsPage = () => {
 
           <h2 style={{ fontWeight: 700, marginBottom: '14px', fontSize: '1.07rem' }}>Suggested for You</h2>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
-            {groups.map(g => (
-              <div
-                key={g.id}
-                className="card"
-                style={{ overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-                id={`group-card-${g.id}`}
-              >
-                <img src={g.img} alt={g.name} style={{ width: '100%', height: '120px', objectFit: 'cover' }} />
-                <div style={{ padding: '12px' }}>
-                  {/* Logo and Name inline */}
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                    <img src={g.logo} alt="" className="avatar avatar-sm" style={{ border: '1px solid var(--border-light)', flexShrink: 0 }} />
-                    <p style={{ fontWeight: 700, margin: 0, fontSize: '0.92rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {g.name}
-                    </p>
-                  </div>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--text-secondary)' }}>
+              Loading groups...
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="card" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: '3rem' }}>👥</span>
+              <p style={{ marginTop: '12px', fontWeight: 600 }}>No groups found.</p>
+              <p style={{ fontSize: '0.82rem' }}>Be the first to create a group!</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
+              {groups.map(g => {
+                const grpId = g._id || g.id;
+                const isJoined = g.members.includes(currentUser?.id || currentUser?._id);
+                return (
+                  <div
+                    key={grpId}
+                    className="card"
+                    style={{ overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                    id={`group-card-${grpId}`}
+                  >
+                    <img src={g.cover || `https://picsum.photos/seed/cover_${grpId}/300/120`} alt={g.name} style={{ width: '100%', height: '120px', objectFit: 'cover' }} />
+                    <div style={{ padding: '12px' }}>
+                      {/* Logo and Name inline */}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                        {g.logo ? (
+                          <img src={g.logo} alt="" className="avatar avatar-sm" style={{ border: '1px solid var(--border-light)', flexShrink: 0 }} />
+                        ) : (
+                          <div className="avatar-placeholder avatar-sm" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.8rem', background: 'var(--primary)', color: 'white' }}>
+                            {g.name?.[0]}
+                          </div>
+                        )}
+                        <p style={{ fontWeight: 700, margin: 0, fontSize: '0.92rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {g.name}
+                        </p>
+                      </div>
 
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {g.privacy === 'Public' ? <FiGlobe size={12} /> : <FiLock size={12} />} {g.privacy} · {formatMembers(g.members)} members
-                  </p>
-                  
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      className={`btn btn-sm ${g.joined ? 'btn-secondary' : 'btn-primary'}`}
-                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                      onClick={() => handleJoinToggle(g.id)}
-                      id={`join-btn-${g.id}`}
-                    >
-                      {g.joined ? <><FiCheck size={14} /> Joined</> : 'Join Group'}
-                    </button>
-                    <button className="btn btn-secondary btn-sm">•••</button>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {g.privacy === 'Public' ? <FiGlobe size={12} /> : <FiLock size={12} />} {g.privacy} · {g.members.length} members
+                      </p>
+                      
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          className={`btn btn-sm ${isJoined ? 'btn-secondary' : 'btn-primary'}`}
+                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                          onClick={() => handleJoinToggle(g)}
+                          id={`join-btn-${grpId}`}
+                        >
+                          {isJoined ? <><FiCheck size={14} /> Joined</> : 'Join Group'}
+                        </button>
+                        <button className="btn btn-secondary btn-sm">•••</button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -159,6 +223,17 @@ const GroupsPage = () => {
               </div>
 
               <div className="form-group">
+                <label className="form-label">Description (Optional)</label>
+                <textarea
+                  className="form-input"
+                  value={newGroupForm.description}
+                  onChange={e => setNewGroupForm({ ...newGroupForm, description: e.target.value })}
+                  placeholder="Describe your group..."
+                  style={{ minHeight: '60px', resize: 'vertical' }}
+                />
+              </div>
+
+              <div className="form-group">
                 <label className="form-label">Privacy Option</label>
                 <select
                   id="group-privacy-select"
@@ -174,7 +249,7 @@ const GroupsPage = () => {
               {/* Group Cover Selection */}
               <div className="form-group">
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                  <FiImage size={18} /> Choose Cover Image (Gallery)
+                  <FiImage size={18} /> Choose Cover Image
                 </label>
                 <input
                   id="group-cover-file"
@@ -182,7 +257,6 @@ const GroupsPage = () => {
                   accept="image/*"
                   onChange={e => handleFileChange(e, 'cover')}
                   style={{ marginTop: '4px' }}
-                  required
                 />
                 {coverPreview && (
                   <img src={coverPreview} alt="Cover Preview" style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '8px', marginTop: '8px', border: '1px solid var(--border-light)' }} />
@@ -192,7 +266,7 @@ const GroupsPage = () => {
               {/* Group Logo Selection */}
               <div className="form-group">
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                  <FiImage size={18} /> Choose Group Logo (Gallery)
+                  <FiImage size={18} /> Choose Group Logo
                 </label>
                 <input
                   id="group-logo-file"
@@ -200,7 +274,6 @@ const GroupsPage = () => {
                   accept="image/*"
                   onChange={e => handleFileChange(e, 'logo')}
                   style={{ marginTop: '4px' }}
-                  required
                 />
                 {logoPreview && (
                   <img src={logoPreview} alt="Logo Preview" className="avatar avatar-md" style={{ marginTop: '8px', border: '1px solid var(--border-light)' }} />
@@ -209,7 +282,9 @@ const GroupsPage = () => {
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" id="submit-group-btn">Create Group</button>
+                <button type="submit" className="btn btn-primary" id="submit-group-btn" disabled={submitting}>
+                  {submitting ? 'Creating...' : 'Create Group'}
+                </button>
               </div>
             </form>
           </div>

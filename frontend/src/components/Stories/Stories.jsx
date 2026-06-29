@@ -250,25 +250,26 @@ const Stories = () => {
             </div>
 
             <div className="story-viewer-header">
-              {(() => {
-                const author = mockUsers.find(u => u.id === activeStory.authorId);
-                return (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src={author?.avatar} alt={author?.fullName} className="avatar avatar-md" style={{ border: '2px solid white' }} />
-                    <div>
-                      <p style={{ color: 'white', fontWeight: 700, fontSize: '0.93rem', margin: 0 }}>{author?.fullName}</p>
-                      <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.78rem', margin: '2px 0 0 0' }}>Just now</p>
-                    </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {activeStory.authorAvatar ? (
+                  <img src={activeStory.authorAvatar} alt="" className="avatar avatar-md" style={{ border: '2px solid white' }} />
+                ) : (
+                  <div className="avatar-placeholder avatar-md" style={{ border: '2px solid white', fontSize: '0.9rem' }}>
+                    {activeStory.authorName?.[0]}
                   </div>
-                );
-              })()}
+                )}
+                <div>
+                  <p style={{ color: 'white', fontWeight: 700, fontSize: '0.93rem', margin: 0 }}>{activeStory.authorName}</p>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.78rem', margin: '2px 0 0 0' }}>Just now</p>
+                </div>
+              </div>
               <button className="story-close-btn" onClick={closeStory}>
                 <FiX size={20} />
               </button>
             </div>
 
             <img
-              src={activeStory.image || mockUsers.find(u => u.id === activeStory.authorId)?.avatar}
+              src={activeStory.image}
               alt="Story"
               className={`story-viewer-img filter-${activeStory.filter || 'none'}`}
             />

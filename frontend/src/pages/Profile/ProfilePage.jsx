@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar/Navbar';
 import PostCard from '../../components/Post/PostCard';
@@ -18,6 +18,49 @@ const ProfilePage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [showCreateReel, setShowCreateReel] = useState(false);
+  
+  const avatarInputRef = useRef(null);
+  const coverInputRef = useRef(null);
+
+  const handleAvatarClick = () => {
+    if (avatarInputRef.current) avatarInputRef.current.click();
+  };
+
+  const handleCoverClick = () => {
+    if (coverInputRef.current) coverInputRef.current.click();
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setLoading(true);
+      const res = await postsAPI.uploadFile(file);
+      await updateProfile({ avatar: res.url });
+      await fetchProfileData();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload profile picture.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCoverChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setLoading(true);
+      const res = await postsAPI.uploadFile(file);
+      await updateProfile({ coverPhoto: res.url });
+      await fetchProfileData();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload cover photo.');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Real Profile States
   const [profileUser, setProfileUser] = useState(null);
@@ -122,9 +165,18 @@ const ProfilePage = () => {
               className="profile-cover-img"
             />
             {isOwner && (
-              <button className="cover-edit-btn">
-                <FiCamera style={{ marginRight: '6px' }} /> Change Cover Photo
-              </button>
+              <>
+                <button className="cover-edit-btn" onClick={handleCoverClick}>
+                  <FiCamera style={{ marginRight: '6px' }} /> Change Cover Photo
+                </button>
+                <input
+                  type="file"
+                  ref={coverInputRef}
+                  onChange={handleCoverChange}
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                />
+              </>
             )}
           </div>
 
@@ -140,9 +192,18 @@ const ProfilePage = () => {
                   </div>
                 )}
                 {isOwner && (
-                  <button className="avatar-edit-btn">
-                    <FiCamera size={16} />
-                  </button>
+                  <>
+                    <button className="avatar-edit-btn" onClick={handleAvatarClick}>
+                      <FiCamera size={16} />
+                    </button>
+                    <input
+                      type="file"
+                      ref={avatarInputRef}
+                      onChange={handleAvatarChange}
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                    />
+                  </>
                 )}
               </div>
             </div>

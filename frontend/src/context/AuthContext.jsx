@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, usersAPI } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -77,8 +77,20 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('friendix_theme', newTheme);
   };
 
-  // Update profile locally (and optionally call API)
-  const updateProfile = (updates) => {
+  // Update profile locally and persist on database
+  const updateProfile = async (updates) => {
+    try {
+      const res = await usersAPI.updateProfile(updates);
+      if (res && res.user) {
+        const updated = { ...res.user, id: res.user._id };
+        setCurrentUser(updated);
+        localStorage.setItem('friendix_user', JSON.stringify(updated));
+        return { success: true };
+      }
+    } catch (err) {
+      console.error('Failed to update profile in database:', err);
+    }
+    // Fallback: update locally
     const updated = { ...currentUser, ...updates };
     setCurrentUser(updated);
     localStorage.setItem('friendix_user', JSON.stringify(updated));

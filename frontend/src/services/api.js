@@ -201,4 +201,19 @@ export const productsAPI = {
   }),
 };
 
-export default { authAPI, postsAPI, usersAPI, messagesAPI, notificationsAPI, adminAPI, productsAPI };
+// ===== GROUPS =====
+export const groupsAPI = {
+  getAll: () => apiFetch('/groups'),
+  create: (groupData) => apiFetch('/groups', {
+    method: 'POST',
+    body: JSON.stringify(groupData),
+  }),
+  join: (groupId) => apiFetch(`/groups/${groupId}/join`, {
+    method: 'POST',
+  }),
+  leave: (groupId) => apiFetch(`/groups/${groupId}/leave`, {
+    method: 'POST',
+  }),
+};
+
+export default { authAPI, postsAPI, usersAPI, messagesAPI, notificationsAPI, adminAPI, productsAPI, groupsAPI };

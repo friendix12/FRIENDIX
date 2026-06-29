@@ -40,6 +40,7 @@ const messageRoutes = require('./routes/messages');
 const adminRoutes = require('./routes/admin');
 const notifRoutes = require('./routes/notifications');
 const productRoutes = require('./routes/products');
+const groupRoutes = require('./routes/groups');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -48,6 +49,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notifRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/groups', groupRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
