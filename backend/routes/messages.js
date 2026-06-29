@@ -61,4 +61,19 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// DELETE /api/messages/:msgId — delete a message
+router.delete('/:msgId', auth, async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.msgId);
+    if (!message) return res.status(404).json({ error: 'মেসেজ পাওয়া যায়নি।' });
+    if (message.senderId.toString() !== req.userId && message.receiverId.toString() !== req.userId) {
+      return res.status(403).json({ error: 'অনুমতি নেই।' });
+    }
+    await Message.findByIdAndDelete(req.params.msgId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

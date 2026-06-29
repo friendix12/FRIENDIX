@@ -215,6 +215,11 @@
 
 .message-row.mine {
   flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.message-row.theirs {
+  justify-content: flex-start;
 }
 
 .message-bubble {
@@ -237,6 +242,49 @@
   color: var(--text-primary);
   border-bottom-left-radius: 4px;
   border: 1px solid var(--border-light);
+}
+
+/* Message read status */
+.msg-read-status {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  vertical-align: bottom;
+}
+
+.msg-read-status.read {
+  color: #53bdeb;
+  opacity: 1;
+}
+
+/* Delete button */
+.msg-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 50%;
+  opacity: 0;
+  transition: var(--transition);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.message-row:hover .msg-delete-btn {
+  opacity: 1;
+}
+
+.msg-delete-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+[data-theme="dark"] .msg-delete-btn:hover {
+  background: rgba(220, 38, 38, 0.2);
+  color: #f87171;
 }
 
 /* Input */

@@ -43,6 +43,16 @@ const MessengerPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
+  const handleDeleteMessage = async (msgId) => {
+    if (!window.confirm('Delete this message?')) return;
+    try {
+      await messagesAPI.deleteMessage(msgId);
+      setChatMessages(prev => prev.filter(m => (m._id || m.id) !== msgId));
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+    }
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || !activeChat) return;
@@ -54,7 +64,7 @@ const MessengerPage = () => {
     // Prepend locally for immediate feel
     const tempMsg = {
       _id: `temp_${Date.now()}`,
-      senderId: currentUser?.id,
+      senderId: { _id: currentUser?.id || currentUser?._id },
       content,
       createdAt: new Date().toISOString()
     };
@@ -179,10 +189,12 @@ const MessengerPage = () => {
                 )}
 
                 {chatMessages.map(msg => {
-                  const isMine = msg.senderId === currentUser?.id;
+                  const senderId = typeof msg.senderId === 'object' ? (msg.senderId._id || msg.senderId.id) : msg.senderId;
+                  const isMine = senderId === currentUser?.id || senderId === currentUser?._id;
                   const msgId = msg._id || msg.id;
+                  const isRead = msg.read;
                   return (
-                    <div key={msgId} className={`message-row ${isMine ? 'mine' : 'theirs'}`}>
+                    <div key={msgId} className={`message-row ${isMine ? 'mine' : 'theirs'}`} data-msg-id={msgId}>
                       {!isMine && (
                         activeChat.avatar ? (
                           <img src={activeChat.avatar} alt="" className="avatar avatar-xs" style={{ flexShrink: 0 }} />
@@ -194,7 +206,24 @@ const MessengerPage = () => {
                       )}
                       <div className={`message-bubble ${isMine ? 'bubble-mine' : 'bubble-theirs'}`}>
                         {msg.content}
+                        {isMine && (
+                          <span className={`msg-read-status ${isRead ? 'read' : ''}`}>
+                            {isRead ? '✓✓' : '✓'}
+                          </span>
+                        )}
                       </div>
+                      {isMine && (
+                        <button
+                          className="msg-delete-btn"
+                          title="Delete message"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteMessage(msgId);
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                   );
                 })}

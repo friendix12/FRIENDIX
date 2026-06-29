@@ -166,6 +166,10 @@ export const messagesAPI = {
     method: 'POST',
     body: JSON.stringify({ receiverId, content, image }),
   }),
+
+  deleteMessage: (msgId) => apiFetch(`/messages/${msgId}`, {
+    method: 'DELETE',
+  }),
 };
 
 // ===== NOTIFICATIONS =====
