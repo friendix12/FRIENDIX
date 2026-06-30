@@ -32,6 +32,19 @@
   font-family: var(--font);
 }
 
+/* Force dark-contrast colors on all default typography inside admin layout to prevent global theme leak */
+.admin-layout, 
+.admin-layout p, 
+.admin-layout span,
+.admin-layout div, 
+.admin-layout td, 
+.admin-layout th, 
+.admin-layout label, 
+.admin-layout h2, 
+.admin-layout h3 {
+  color: var(--admin-text-primary);
+}
+
 /* Sidebar Dashboard Navigation */
 .admin-sidebar {
   background: var(--admin-bg-sidebar);

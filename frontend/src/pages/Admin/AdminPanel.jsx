@@ -437,8 +437,8 @@ const AdminPanel = () => {
                               <span style={{ fontWeight: 600, fontSize: '0.87rem' }}>{user.fullName}</span>
                             </div>
                           </td>
-                          <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{user.email || user.phone || '—'}</td>
-                          <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{user.location || '—'}</td>
+                          <td style={{ fontSize: '0.82rem', color: 'var(--admin-text-secondary)' }}>{user.email || user.phone || '—'}</td>
+                          <td style={{ fontSize: '0.82rem', color: 'var(--admin-text-secondary)' }}>{user.location || '—'}</td>
                           <td>
                             <span className={`role-badge ${user.isAdmin ? 'admin' : 'user'}`}>
                               {user.isAdmin ? '👑 Admin' : '👤 User'}
@@ -495,7 +495,7 @@ const AdminPanel = () => {
                             </div>
                           </td>
                           <td style={{ maxWidth: '240px' }}>
-                            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+                            <p style={{ fontSize: '0.82rem', color: 'var(--admin-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                               {post.content || '[Media Attachment]'}
                             </p>
                           </td>
@@ -534,7 +534,7 @@ const AdminPanel = () => {
                 </button>
               </div>
 
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.87rem', marginBottom: '20px', background: 'var(--primary-light)', padding: '12px 16px', borderRadius: '8px', borderLeft: '4px solid var(--primary)' }}>
+              <p style={{ color: 'var(--admin-text-secondary)', fontSize: '0.87rem', marginBottom: '20px', background: 'rgba(24, 119, 242, 0.08)', padding: '12px 16px', borderRadius: '8px', borderLeft: '4px solid var(--admin-accent-blue)', border: '1px solid rgba(24, 119, 242, 0.15)' }}>
                 💡 Automatically fallback or switch active Cloudinary accounts when current accounts reach their upload or memory limit.
               </p>
 
@@ -552,7 +552,7 @@ const AdminPanel = () => {
                           <h3 style={{ fontWeight: 700, margin: 0, fontSize: '0.95rem' }}>{acc.name}</h3>
                           {acc.isActive && <span className="status-badge active">Active</span>}
                         </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Cloud Name: {acc.cloudName}</p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--admin-text-secondary)', margin: 0 }}>Cloud Name: {acc.cloudName}</p>
                       </div>
                     </div>
 
@@ -567,7 +567,7 @@ const AdminPanel = () => {
                       </div>
                       <div className="cloud-detail-row">
                         <span>Usage:</span>
-                        <span style={{ color: acc.isActive ? 'var(--primary)' : 'var(--text-secondary)' }}>{acc.isActive ? '2.1 GB / 25 GB' : acc.usage}</span>
+                        <span style={{ color: acc.isActive ? 'var(--admin-accent-blue)' : 'var(--admin-text-secondary)' }}>{acc.isActive ? '2.1 GB / 25 GB' : acc.usage}</span>
                       </div>
                     </div>
 
@@ -577,7 +577,7 @@ const AdminPanel = () => {
                         className="cloud-usage-bar-fill"
                         style={{
                           width: acc.isActive ? '10%' : '5%',
-                          background: acc.isActive ? 'var(--primary)' : 'var(--border-color)'
+                          background: acc.isActive ? 'var(--admin-accent-blue)' : 'var(--admin-border)'
                         }}
                       />
                     </div>
@@ -593,7 +593,7 @@ const AdminPanel = () => {
                         </button>
                       )}
                       {acc.isActive && (
-                        <span style={{ fontSize: '0.82rem', color: 'var(--success)', fontWeight: 600 }}>Currently Active</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--admin-accent-green)', fontWeight: 600 }}>Currently Active</span>
                       )}
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
@@ -640,7 +640,7 @@ const AdminPanel = () => {
                     {campaigns.map(camp => (
                       <tr key={camp.id}>
                         <td style={{ fontWeight: 700 }}>{camp.name}</td>
-                        <td style={{ color: 'var(--success)', fontWeight: 600 }}>{camp.budget}</td>
+                        <td style={{ color: 'var(--admin-accent-green)', fontWeight: 600 }}>{camp.budget}</td>
                         <td>{camp.impressions}</td>
                         <td>{camp.clicks}</td>
                         <td>{camp.ctr}</td>
@@ -688,7 +688,7 @@ const AdminPanel = () => {
                           <td style={{ fontWeight: 700 }}>{rep.type}</td>
                           <td>{rep.author}</td>
                           <td style={{ color: '#F33E58', fontWeight: 600 }}>{rep.reason}</td>
-                          <td style={{ fontStyle: 'italic', color: 'var(--text-secondary)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rep.content}</td>
+                          <td style={{ fontStyle: 'italic', color: 'var(--admin-text-secondary)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rep.content}</td>
                           <td>
                             <div style={{ display: 'flex', gap: '8px' }}>
                               <button className="btn btn-secondary btn-sm" onClick={() => resolveReport(rep.id, 'Dismissed')}>Keep Post</button>
@@ -703,7 +703,7 @@ const AdminPanel = () => {
               ) : (
                 <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
                   <p style={{ fontSize: '2rem', marginBottom: '12px' }}>🚩</p>
-                  <p style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>All reports successfully resolved. Clear status.</p>
+                  <p style={{ color: 'var(--admin-text-secondary)', fontWeight: 600 }}>All reports successfully resolved. Clear status.</p>
                 </div>
               )}
             </div>
@@ -713,7 +713,7 @@ const AdminPanel = () => {
           {activeTab === 'Audit Logs' && (
             <div className="admin-content animate-fadeIn">
               <h2 className="admin-page-title">Admin Audit Logs</h2>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>Rolling system logs capturing active admin console transactions.</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--admin-text-secondary)', marginBottom: '16px' }}>Rolling system logs capturing active admin console transactions.</p>
               <div className="card" style={{ padding: '16px', maxHeight: '420px', overflowY: 'auto' }}>
                 {auditLogs.map(log => (
                   <div key={log.id} className="audit-log-item">
