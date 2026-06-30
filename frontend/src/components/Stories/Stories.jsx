@@ -104,7 +104,8 @@ const Stories = () => {
   const [storiesLoading, setLoading]  = useState(true);
 
   // ── Viewer ──
-  const [activeIdx, setActiveIdx]     = useState(null);
+  const [activeUserIdx, setActiveUserIdx]   = useState(null);
+  const [activeStoryIdx, setActiveStoryIdx] = useState(null);
   const [progress, setProgress]       = useState(0);
   const [showViewerList, setViewerList] = useState(false);
   const [floatingEmojis, setFloatEmoji] = useState([]);
@@ -156,6 +157,36 @@ const Stories = () => {
   const pollingRef    = useRef(null);
   const previewFrameRef = useRef(null);
 
+  // Group stories by author/user
+  const groupedStories = [];
+  const groupsMap = {};
+  
+  // Sort stories chronological (oldest to newest) overall first, so when we push to group, they are sorted
+  const sortedStories = [...stories].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  
+  sortedStories.forEach(story => {
+    const authId = story.authorId;
+    if (!groupsMap[authId]) {
+      groupsMap[authId] = {
+        authorId: authId,
+        authorName: story.authorName,
+        authorAvatar: story.authorAvatar,
+        stories: []
+      };
+      groupedStories.push(groupsMap[authId]);
+    }
+    groupsMap[authId].stories.push(story);
+  });
+
+  // Sort groups so that most recently updated user is first
+  groupedStories.sort((a, b) => {
+    const latestA = Math.max(...a.stories.map(s => new Date(s.createdAt).getTime()));
+    const latestB = Math.max(...b.stories.map(s => new Date(s.createdAt).getTime()));
+    return latestB - latestA;
+  });
+
+  const activeStory = (activeUserIdx !== null && activeStoryIdx !== null) ? groupedStories[activeUserIdx]?.stories[activeStoryIdx] : null;
+
   // ──────────────────────────────────────
   // FETCH STORIES
   // ──────────────────────────────────────
@@ -176,12 +207,14 @@ const Stories = () => {
 
   // Open story from profile navigation
   useEffect(() => {
-    if (location.state?.openStoryForUser && stories.length > 0) {
-      const idx = stories.findIndex(s => s.authorId === location.state.openStoryForUser.toString());
-      if (idx !== -1) openStoryAt(idx);
+    if (location.state?.openStoryForUser && groupedStories.length > 0) {
+      const uIdx = groupedStories.findIndex(g => g.authorId === location.state.openStoryForUser.toString());
+      if (uIdx !== -1) {
+        openStoryAt(uIdx, 0);
+      }
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, stories]);
+  }, [location.state, groupedStories]);
 
   // Sticker drag events
   useEffect(() => {
@@ -242,10 +275,14 @@ const Stories = () => {
   // ──────────────────────────────────────
   // STORY VIEWER
   // ──────────────────────────────────────
-  const openStoryAt = (idx) => {
-    if (idx < 0 || idx >= stories.length) return;
-    const story = stories[idx];
-    setActiveIdx(idx);
+  const openStoryAt = (userIdx, storyIdx) => {
+    if (userIdx < 0 || userIdx >= groupedStories.length) return;
+    const group = groupedStories[userIdx];
+    if (storyIdx < 0 || storyIdx >= group.stories.length) return;
+
+    const story = group.stories[storyIdx];
+    setActiveUserIdx(userIdx);
+    setActiveStoryIdx(storyIdx);
     setProgress(0);
     setViewerList(false);
     clearInterval(progressRef.current);
@@ -260,13 +297,9 @@ const Stories = () => {
         setProgress(p => {
           if (p >= 100) {
             clearInterval(progressRef.current);
-            setActiveIdx(prev => {
-              if (prev !== null && prev < stories.length - 1) {
-                setTimeout(() => openStoryAt(prev + 1), 50);
-                return prev + 1;
-              }
-              return null;
-            });
+            setTimeout(() => {
+              goNext(userIdx, storyIdx);
+            }, 50);
             return 0;
           }
           return p + 1;
@@ -276,18 +309,39 @@ const Stories = () => {
   };
 
   const closeStory = () => {
-    setActiveIdx(null);
+    setActiveUserIdx(null);
+    setActiveStoryIdx(null);
     setProgress(0);
     clearInterval(progressRef.current);
     if (storyVideoRef.current) storyVideoRef.current.pause();
   };
 
-  const goNext = () => {
-    if (activeIdx !== null && activeIdx < stories.length - 1) openStoryAt(activeIdx + 1);
-    else closeStory();
+  const goNext = (uIdx = activeUserIdx, sIdx = activeStoryIdx) => {
+    if (uIdx === null || sIdx === null) return;
+    const group = groupedStories[uIdx];
+    if (!group) return closeStory();
+    if (sIdx < group.stories.length - 1) {
+      openStoryAt(uIdx, sIdx + 1);
+    } else if (uIdx < groupedStories.length - 1) {
+      openStoryAt(uIdx + 1, 0);
+    } else {
+      closeStory();
+    }
   };
-  const goPrev = () => {
-    if (activeIdx !== null && activeIdx > 0) openStoryAt(activeIdx - 1);
+
+  const goPrev = (uIdx = activeUserIdx, sIdx = activeStoryIdx) => {
+    if (uIdx === null || sIdx === null) return;
+    if (sIdx > 0) {
+      openStoryAt(uIdx, sIdx - 1);
+    } else if (uIdx > 0) {
+      const prevGroup = groupedStories[uIdx - 1];
+      if (prevGroup) {
+        openStoryAt(uIdx - 1, prevGroup.stories.length - 1);
+      }
+    } else {
+      setProgress(0);
+      if (storyVideoRef.current) storyVideoRef.current.currentTime = 0;
+    }
   };
 
   const handleVideoProgress = (e) => {
@@ -444,7 +498,6 @@ const Stories = () => {
   // ──────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────
-  const activeStory = activeIdx !== null ? stories[activeIdx] : null;
   const selectedTrack = MUSIC_LIBRARY.find(t => t.id === form.musicId);
   const filteredMusic = musicGenre === 'All' ? MUSIC_LIBRARY : MUSIC_LIBRARY.filter(t => t.genre === musicGenre);
 
@@ -481,32 +534,34 @@ const Stories = () => {
           {/* Story Cards */}
           {storiesLoading && stories.length === 0
             ? [1, 2, 3].map(i => <div key={i} className="story-card" style={{ background: 'var(--bg-hover)', opacity: 0.5 }} />)
-            : stories.map((story, index) => {
-                const isMe = story.authorId === currentUser?.id?.toString();
-                const name = story.authorName || (isMe ? currentUser?.fullName : 'User');
-                const avatar = isMe ? (currentUser?.avatar || story.authorAvatar) : story.authorAvatar;
+            : groupedStories.map((group, index) => {
+                const isMe = group.authorId === currentUser?.id?.toString();
+                const name = group.authorName || (isMe ? currentUser?.fullName : 'User');
+                const avatar = isMe ? (currentUser?.avatar || group.authorAvatar) : group.authorAvatar;
                 const firstName = (name || '').split(' ')[0] || 'User';
+                const firstStory = group.stories[0]; // Display first/starting story preview
+
                 return (
                   <div
-                    key={story.id}
+                    key={group.authorId}
                     className="story-card"
-                    onClick={() => openStoryAt(index)}
+                    onClick={() => openStoryAt(index, 0)}
                     role="button" tabIndex={0}
-                    onKeyDown={e => e.key === 'Enter' && openStoryAt(index)}
-                    id={`story-card-${story.id}`}
+                    onKeyDown={e => e.key === 'Enter' && openStoryAt(index, 0)}
+                    id={`story-card-${group.authorId}`}
                   >
-                    {story.mediaType === 'video'
-                      ? <video src={story.image} className={`story-bg-img filter-${story.filter || 'none'}`} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : <img src={story.image} alt={name} className={`story-bg-img filter-${story.filter || 'none'}`} onError={e => { e.target.src = avatar || 'https://i.pravatar.cc/300'; }} />}
+                    {firstStory.mediaType === 'video'
+                      ? <video src={firstStory.image} className={`story-bg-img filter-${firstStory.filter || 'none'}`} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <img src={firstStory.image} alt={name} className={`story-bg-img filter-${firstStory.filter || 'none'}`} onError={e => { e.target.src = avatar || 'https://i.pravatar.cc/300'; }} />}
                     <div className="story-gradient" />
                     <div className="story-avatar-ring">
                       {avatar
                         ? <img src={avatar} alt={name} className="story-avatar" />
                         : <div className="avatar-placeholder story-avatar" style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', color: 'white', background: 'var(--primary)' }}>{firstName[0]}</div>}
                     </div>
-                    {story.mediaType === 'video' && <div className="story-video-badge">▶</div>}
+                    {group.stories.some(s => s.mediaType === 'video') && <div className="story-video-badge">▶</div>}
                     <p className="story-name">{firstName}</p>
-                    {isMe && <div className="story-visibility-badge" title={story.visibility}>{getVisIcon(story.visibility)}</div>}
+                    {isMe && <div className="story-visibility-badge" title={firstStory.visibility}>{getVisIcon(firstStory.visibility)}</div>}
                   </div>
                 );
               })}
@@ -529,9 +584,18 @@ const Stories = () => {
               <span key={fe.id} className="floating-emoji-reaction" style={{ left: `${fe.left}%` }}>{fe.symbol}</span>
             ))}
 
-            {/* Progress Bar */}
-            <div className="story-progress-bar">
-              <div className="story-progress-fill" style={{ width: `${progress}%` }} />
+            {/* Multi-segment Progress Bar */}
+            <div className="story-progress-bars-container">
+              {groupedStories[activeUserIdx]?.stories.map((storyItem, idx) => {
+                let widthPercent = 0;
+                if (idx < activeStoryIdx) widthPercent = 100;
+                else if (idx === activeStoryIdx) widthPercent = progress;
+                return (
+                  <div key={storyItem.id} className="story-progress-segment-bg">
+                    <div className="story-progress-segment-fill" style={{ width: `${widthPercent}%` }} />
+                  </div>
+                );
+              })}
             </div>
 
             {/* Header */}
@@ -560,11 +624,11 @@ const Stories = () => {
             </div>
 
             {/* Prev/Next arrows */}
-            {activeIdx > 0 && (
-              <button className="story-nav-btn story-nav-left" onClick={goPrev}><FiChevronLeft size={22} /></button>
+            {(activeUserIdx > 0 || activeStoryIdx > 0) && (
+              <button className="story-nav-btn story-nav-left" onClick={() => goPrev()}><FiChevronLeft size={22} /></button>
             )}
-            {activeIdx < stories.length - 1 && (
-              <button className="story-nav-btn story-nav-right" onClick={goNext}><FiChevronRight size={22} /></button>
+            {(activeUserIdx < groupedStories.length - 1 || activeStoryIdx < (groupedStories[activeUserIdx]?.stories.length - 1)) && (
+              <button className="story-nav-btn story-nav-right" onClick={() => goNext()}><FiChevronRight size={22} /></button>
             )}
 
             {/* Media */}
