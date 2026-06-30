@@ -13,16 +13,18 @@ router.get('/', auth, async (req, res) => {
   try {
     const fortyEightHoursAgo = new Date(Date.now() - ACTIVE_WINDOW_MS);
     const me = await User.findById(req.userId).select('friends followingList');
-    const myFriendIds = (me?.friends || []).map(id => id.toString());
-    const myFollowingIds = (me?.followingList || []).map(id => id.toString());
+    const myFriendIds = (me?.friends || []).filter(id => id).map(id => id.toString());
+    const myFollowingIds = (me?.followingList || []).filter(id => id).map(id => id.toString());
 
     const allStories = await Story.find({ createdAt: { $gte: fortyEightHoursAgo } })
       .populate('authorId', 'fullName firstName lastName avatar')
       .sort({ createdAt: -1 });
 
     const visibleStories = allStories.filter(story => {
-      const storyAuthorId = (story.authorId?._id || story.authorId)?.toString();
-      const isMyStory = storyAuthorId === req.userId.toString();
+      const authorIdObj = story.authorId?._id || story.authorId;
+      if (!authorIdObj) return false;
+      const storyAuthorId = authorIdObj.toString();
+      const isMyStory = req.userId ? storyAuthorId === req.userId.toString() : false;
       const isFriend = myFriendIds.includes(storyAuthorId);
       const isFollowing = myFollowingIds.includes(storyAuthorId);
       const isPublic = story.visibility === 'public';
