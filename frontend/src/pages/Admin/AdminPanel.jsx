@@ -309,7 +309,7 @@ const AdminPanel = () => {
         <div className="admin-sidebar-footer">
           <img src={currentUser?.avatar || 'https://i.pravatar.cc/150?img=11'} alt="" className="avatar avatar-sm" />
           <div>
-            <p style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{currentUser?.fullName || 'Amar Biswas'}</p>
+            <p style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--admin-text-primary)', margin: 0 }}>{currentUser?.fullName || 'Amar Biswas'}</p>
             <p style={{ fontSize: '0.75rem', color: '#42B72A', fontWeight: 600, margin: '2px 0 0 0' }}>Super Admin</p>
           </div>
         </div>
@@ -319,7 +319,7 @@ const AdminPanel = () => {
       <main className="admin-main">
         {/* Custom Header Bar inside Admin Panel */}
         <header className="admin-crm-header">
-          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>FRIENDIX Secure Administration Console</span>
+          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--admin-text-primary)' }}>FRIENDIX Secure Administration Console</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span className="status-badge active" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span className="cloud-status-dot active" style={{ display: 'inline-block' }} /> System Online
@@ -355,11 +355,11 @@ const AdminPanel = () => {
                   <h3 style={{ fontWeight: 700, marginBottom: '16px', fontSize: '1.05rem' }}>Recent Registered Users</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {users.slice(0, 4).map(user => (
-                      <div key={user.id} className="admin-user-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px', borderBottom: '1px solid var(--border-light)' }}>
+                      <div key={user.id} className="admin-user-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px' }}>
                         <img src={user.avatar} alt="" className="avatar avatar-sm" />
                         <div style={{ flex: 1 }}>
                           <p style={{ fontWeight: 600, fontSize: '0.85rem', margin: 0 }}>{user.fullName}</p>
-                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>{user.email}</p>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-secondary)', margin: '2px 0 0 0' }}>{user.email}</p>
                         </div>
                         <span className="status-badge active">Active</span>
                       </div>
@@ -372,14 +372,14 @@ const AdminPanel = () => {
                   <h3 style={{ fontWeight: 700, marginBottom: '16px', fontSize: '1.05rem' }}><FiActivity /> Server Status & Analytics</h3>
                   <div className="server-metrics-wrap">
                     <div className="metric-gauge-card">
-                      <div className="circular-gauge">
+                      <div className="circular-gauge" style={{ background: 'conic-gradient(var(--admin-accent-blue) 38%, rgba(255, 255, 255, 0.05) 0)' }}>
                         <span className="circular-gauge-value">38%</span>
                       </div>
                       <p style={{ fontSize: '0.78rem', fontWeight: 700, margin: 0 }}>CPU Core Load</p>
                     </div>
 
                     <div className="metric-gauge-card">
-                      <div className="circular-gauge" style={{ background: 'conic-gradient(var(--success) 62%, var(--border-light) 0)' }}>
+                      <div className="circular-gauge" style={{ background: 'conic-gradient(var(--admin-accent-green) 62%, rgba(255, 255, 255, 0.05) 0)' }}>
                         <span className="circular-gauge-value">62%</span>
                       </div>
                       <p style={{ fontSize: '0.78rem', fontWeight: 700, margin: 0 }}>RAM Memory Allocation</p>
@@ -387,12 +387,12 @@ const AdminPanel = () => {
                   </div>
                   <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.82rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>MongoDB Size:</span>
-                      <strong style={{ color: 'var(--text-primary)' }}>12.4 MB / 512 MB (Atlas Free)</strong>
+                      <span style={{ color: 'var(--admin-text-secondary)' }}>MongoDB Size:</span>
+                      <strong style={{ color: 'var(--admin-text-primary)' }}>12.4 MB / 512 MB (Atlas Free)</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>API Average Latency:</span>
-                      <strong style={{ color: 'var(--success)' }}>14ms (Healthy)</strong>
+                      <span style={{ color: 'var(--admin-text-secondary)' }}>API Average Latency:</span>
+                      <strong style={{ color: 'var(--admin-accent-green)' }}>14ms (Healthy)</strong>
                     </div>
                   </div>
                 </div>
@@ -750,7 +750,7 @@ const AdminPanel = () => {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '14px', background: 'var(--bg-hover)', borderRadius: '8px', marginTop: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '14px', background: 'var(--admin-bg-hover)', borderRadius: '8px', marginTop: '8px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
                     <input
                       type="checkbox"
@@ -780,7 +780,7 @@ const AdminPanel = () => {
       {/* Add Cloudinary Modal */}
       {showAddCloudinary && (
         <div className="story-modal-overlay" onClick={() => setShowAddCloudinary(false)}>
-          <div className="card" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '440px', padding: '24px', borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+          <div className="card" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '440px', padding: '24px', borderRadius: '12px', background: 'var(--admin-bg-card)', border: '1px solid var(--admin-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem' }}>Add Cloudinary Account</h3>
               <button className="icon-btn" onClick={() => setShowAddCloudinary(false)}>✕</button>
@@ -816,7 +816,7 @@ const AdminPanel = () => {
       {/* Edit Cloudinary Modal */}
       {showEditCloudinary && (
         <div className="story-modal-overlay" onClick={() => setShowEditCloudinary(false)}>
-          <div className="card" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '440px', padding: '24px', borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+          <div className="card" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '440px', padding: '24px', borderRadius: '12px', background: 'var(--admin-bg-card)', border: '1px solid var(--admin-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem' }}>Edit Cloudinary Account</h3>
               <button className="icon-btn" onClick={() => setShowEditCloudinary(false)}>✕</button>
