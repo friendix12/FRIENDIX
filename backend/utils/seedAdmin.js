@@ -1,9 +1,9 @@
-﻿const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
 const seedAdmin = async () => {
   try {
-    const adminEmail = 'amarbiswas8872@gmail.com';
+    const adminEmail = 'amarbiswas887@gmail.com';
     const existingAdmin = await User.findOne({ email: adminEmail });
 
     if (existingAdmin) {
@@ -36,7 +36,7 @@ const seedAdmin = async () => {
       gender: 'Male'
     });
 
-    console.log('🚀 Super Admin seeded successfully: amarbiswas8872@gmail.com');
+    console.log('🚀 Super Admin seeded successfully: amarbiswas887@gmail.com');
   } catch (err) {
     console.error('❌ Error seeding admin user:', err.message);
   }

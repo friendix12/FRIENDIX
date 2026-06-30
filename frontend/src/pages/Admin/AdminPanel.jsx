@@ -68,12 +68,12 @@ const AdminPanel = () => {
   const handleGateLogin = async (e) => {
     e.preventDefault();
     let emailInput = gateCredentials.email.trim().toLowerCase();
-    // Normalize missing @ if user types 'amarbiswas8872gmail.com'
-    if (emailInput === 'amarbiswas8872gmail.com') {
-      emailInput = 'amarbiswas8872@gmail.com';
+    // Normalize missing @ if user types 'amarbiswas887gmail.com'
+    if (emailInput === 'amarbiswas887gmail.com') {
+      emailInput = 'amarbiswas887@gmail.com';
     }
 
-    if (emailInput !== 'amarbiswas8872@gmail.com') {
+    if (emailInput !== 'amarbiswas887@gmail.com') {
       setGateError('Incorrect credentials or insufficient admin rights.');
       return;
     }
