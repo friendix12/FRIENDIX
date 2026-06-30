@@ -937,3 +937,242 @@
 .filter-none      { filter: none; }
 
 
+/* ═══════════════════════════════════════════
+   UPLOAD PROGRESS MODAL
+═══════════════════════════════════════════ */
+.upload-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.25s ease;
+}
+
+.upload-modal-card {
+  background: var(--bg-card, #fff);
+  border-radius: 24px;
+  padding: 36px 32px 28px;
+  min-width: 300px;
+  max-width: 360px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255,255,255,0.08);
+  animation: scaleInModal 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-modal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #1877F2, #00C6FF, #7C3AED, #e91e8c);
+  background-size: 200% 100%;
+  animation: shimmerBar 2s linear infinite;
+}
+
+@keyframes shimmerBar {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes scaleInModal {
+  from { transform: scale(0.8); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* ── SVG Circular Ring ── */
+.upload-ring-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-ring-svg {
+  width: 120px;
+  height: 120px;
+  transform: rotate(-90deg);
+  position: absolute;
+  inset: 0;
+}
+
+.upload-ring-bg {
+  fill: none;
+  stroke: var(--border-light, #e8eaf0);
+  stroke-width: 8;
+}
+
+.upload-ring-fill {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 314;
+  stroke-dashoffset: 314;
+  transition: stroke-dashoffset 0.4s ease, stroke 0.3s ease;
+}
+
+.upload-ring-fill.upload  { stroke: #1877F2; }
+.upload-ring-fill.compress{ stroke: #F7B125; }
+.upload-ring-fill.success { stroke: #10B981; stroke-dashoffset: 0 !important; }
+.upload-ring-fill.error   { stroke: #e74c3c; }
+
+.upload-ring-icon {
+  font-size: 2rem;
+  position: relative;
+  z-index: 1;
+  line-height: 1;
+  margin-bottom: 4px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.upload-ring-pct {
+  position: absolute;
+  bottom: 14px;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-primary, #1c1e21);
+  letter-spacing: 0.02em;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.1); }
+}
+
+/* ── Text below ring ── */
+.upload-modal-text {
+  text-align: center;
+  width: 100%;
+}
+
+.upload-modal-title {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary, #1c1e21);
+}
+
+.upload-modal-title.success { color: #10B981; }
+.upload-modal-title.error   { color: #e74c3c; }
+
+.upload-modal-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #65676b);
+  line-height: 1.4;
+}
+
+.upload-modal-sub.error-msg {
+  color: #e74c3c;
+  font-size: 0.78rem;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: rgba(231, 76, 60, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+/* ── Linear progress bar ── */
+.upload-linear-bar-wrap {
+  width: 100%;
+  height: 5px;
+  background: var(--border-light, #e8eaf0);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 18px;
+}
+
+.upload-linear-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.upload-linear-bar-fill.upload   { background: linear-gradient(90deg, #1877F2, #00C6FF); }
+.upload-linear-bar-fill.compress { background: linear-gradient(90deg, #F7B125, #F58529); }
+
+/* ── Confirm Delete card ── */
+.confirm-delete-card {
+  text-align: center;
+}
+
+/* ═══════════════════════════════════════════
+   TEXT OVERLAY — DRAGGABLE + RESIZABLE
+═══════════════════════════════════════════ */
+.story-text-draggable {
+  cursor: grab !important;
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+  touch-action: none;
+}
+
+.story-text-draggable:active {
+  cursor: grabbing !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+.story-text-drag-hint {
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  margin-top: 4px;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  text-transform: uppercase;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ── Text size range slider ── */
+.story-text-size-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  background: var(--border-light, #e8eaf0);
+  border-radius: 99px;
+  outline: none;
+  cursor: pointer;
+}
+
+.story-text-size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1877F2, #00C6FF);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(24, 119, 242, 0.4);
+  transition: transform 0.15s ease;
+}
+
+.story-text-size-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.story-text-size-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1877F2, #00C6FF);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(24, 119, 242, 0.4);
+}
+
+
+

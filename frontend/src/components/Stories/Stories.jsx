@@ -68,6 +68,9 @@ const normalizeStory = (s) => ({
   bgColor: s.bgColor || '',
   visibility: s.visibility || 'friends',
   stickers: s.stickers || [],
+  textX: s.textX ?? 50,
+  textY: s.textY ?? 80,
+  textSize: s.textSize ?? 20,
   viewers: s.viewers || [],
   createdAt: s.createdAt,
 });
@@ -110,6 +113,16 @@ const Stories = () => {
   const [showCreate, setShowCreate]   = useState(false);
   const [showArchive, setShowArchive] = useState(false);
 
+  // ── Upload Progress Modal ──
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadPhase, setUploadPhase]         = useState('upload');   // 'compress' | 'upload'
+  const [uploadProgress, setUploadProgress]   = useState(0);          // 0–100
+  const [uploadStatus, setUploadStatus]       = useState('idle');     // 'idle'|'running'|'success'|'error'
+  const [uploadError, setUploadError]         = useState('');
+
+  // ── Confirm Delete Modal ──
+  const [showConfirmDelete, setShowConfirmDelete] = useState(null); // storyId | null
+
   // ── Creator form ──
   const [mediaFile, setMediaFile]     = useState(null);
   const [mediaPreview, setPreview]    = useState(null);
@@ -120,6 +133,11 @@ const Stories = () => {
     visibility: 'friends', musicId: '', stickers: [],
   });
 
+  // ── Text Overlay drag + size ──
+  const [textPos, setTextPos]         = useState({ x: 50, y: 80 });  // % position
+  const [textFontSize, setTextFontSize] = useState(20);               // px
+  const [draggingText, setDraggingText] = useState(false);
+
   // ── Music picker ──
   const [musicGenre, setMusicGenre]   = useState('All');
   const [previewingId, setPreviewId]  = useState(null);
@@ -127,7 +145,7 @@ const Stories = () => {
   const [activeSection, setSection]   = useState('text'); // text|filter|music|stickers|visibility
 
   // ── Sticker drag ──
-  const [dragging, setDragging]       = useState(null); // {idx, startX, startY}
+  const [dragging, setDragging]       = useState(null); // {idx}
 
   // ── Refs ──
   const progressRef   = useRef(null);
@@ -195,6 +213,32 @@ const Stories = () => {
     };
   }, [dragging]);
 
+  // ── Text overlay drag events ──
+  useEffect(() => {
+    if (!draggingText) return;
+    const onMove = (e) => {
+      const frame = previewFrameRef.current;
+      if (!frame) return;
+      const rect = frame.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const x = Math.max(5, Math.min(95, ((clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(5, Math.min(95, ((clientY - rect.top) / rect.height) * 100));
+      setTextPos({ x, y });
+    };
+    const onUp = () => setDraggingText(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+  }, [draggingText]);
+
   // ──────────────────────────────────────
   // STORY VIEWER
   // ──────────────────────────────────────
@@ -259,12 +303,21 @@ const Stories = () => {
   };
 
   const handleDeleteStory = async (storyId) => {
-    if (!window.confirm('Delete this story?')) return;
+    setShowConfirmDelete(storyId);
+  };
+
+  const confirmDeleteStory = async () => {
+    const storyId = showConfirmDelete;
+    setShowConfirmDelete(null);
     try {
       await storiesAPI.deleteStory(storyId);
       setStories(p => p.filter(s => s.id !== storyId));
       closeStory();
-    } catch { alert('Failed to delete story.'); }
+    } catch {
+      setUploadError('Failed to delete story. Please try again.');
+      setUploadStatus('error');
+      setShowUploadModal(true);
+    }
   };
 
   // ──────────────────────────────────────
@@ -330,15 +383,29 @@ const Stories = () => {
     if (previewAudioRef.current) previewAudioRef.current.pause();
     setPreviewId(null);
     setSection('text');
+    setTextPos({ x: 50, y: 80 });
+    setTextFontSize(20);
     setForm({ text: '', filter: 'none', bgColor: 'linear-gradient(135deg,#1877F2,#00C6FF)', visibility: 'friends', musicId: '', stickers: [] });
   };
 
   const handleCreateStory = async (e) => {
     e.preventDefault();
     if (!mediaFile || uploading) return;
+
+    // Open the upload progress modal
+    setShowUploadModal(true);
+    setUploadStatus('running');
+    setUploadProgress(0);
+    setUploadPhase('upload');
+    setUploadError('');
+    setUploading(true);
+
     try {
-      setUploading(true);
-      const uploadRes = await postsAPI.uploadFile(mediaFile);
+      const uploadRes = await postsAPI.uploadFile(mediaFile, ({ phase, pct }) => {
+        setUploadPhase(phase);
+        setUploadProgress(pct);
+      });
+
       const selectedTrack = MUSIC_LIBRARY.find(t => t.id === form.musicId);
       const payload = {
         image: uploadRes.url,
@@ -351,15 +418,27 @@ const Stories = () => {
         musicUrl: selectedTrack?.url || '',
         musicLabel: selectedTrack?.label || '',
         musicEmoji: selectedTrack?.emoji || '',
+        textX: textPos.x,
+        textY: textPos.y,
+        textSize: textFontSize,
       };
       const res = await storiesAPI.create(payload);
       if (res?.story) setStories(p => [normalizeStory(res.story), ...p]);
-      setShowCreate(false);
-      resetForm();
+
+      setUploadStatus('success');
+      setUploadProgress(100);
+      setTimeout(() => {
+        setShowUploadModal(false);
+        setShowCreate(false);
+        resetForm();
+      }, 1500);
     } catch (err) {
       console.error(err);
-      alert('Failed to share story. Please try again.');
-    } finally { setUploading(false); }
+      setUploadStatus('error');
+      setUploadError(err.message || 'Failed to share story. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   // ──────────────────────────────────────
@@ -514,7 +593,18 @@ const Stories = () => {
 
             {/* Text Overlay */}
             {activeStory.text && (
-              <div className="story-text-overlay" style={{ background: activeStory.bgColor || 'rgba(0,0,0,0.4)' }}>
+              <div
+                className="story-text-overlay"
+                style={{
+                  background: activeStory.bgColor || 'rgba(0,0,0,0.4)',
+                  position: 'absolute',
+                  left: `${activeStory.textX ?? 50}%`,
+                  top: `${activeStory.textY ?? 80}%`,
+                  transform: 'translate(-50%, -50%)',
+                  bottom: 'auto',
+                  fontSize: `${activeStory.textSize ?? 20}px`,
+                }}
+              >
                 <p>{activeStory.text}</p>
               </div>
             )}
@@ -690,6 +780,24 @@ const Stories = () => {
                             <option value="transparent">🫥 Transparent</option>
                           </select>
                         </div>
+                        {form.text && (
+                          <div className="form-group">
+                            <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Text Size</span>
+                              <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{textFontSize}px</span>
+                            </label>
+                            <input
+                              type="range"
+                              className="story-text-size-slider"
+                              min={12} max={72} step={2}
+                              value={textFontSize}
+                              onChange={e => setTextFontSize(Number(e.target.value))}
+                            />
+                            <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                              💡 Drag the text on the preview to reposition it
+                            </p>
+                          </div>
+                        )}
                       </>
                     )}
 
@@ -863,10 +971,26 @@ const Stories = () => {
                         </span>
                       ))}
 
-                      {/* Text overlay preview */}
+                      {/* Text overlay preview — draggable */}
                       {form.text && (
-                        <div className="story-text-overlay" style={{ background: form.bgColor, bottom: '60px' }}>
+                        <div
+                          className="story-text-overlay story-text-draggable"
+                          style={{
+                            background: form.bgColor,
+                            position: 'absolute',
+                            left: `${textPos.x}%`,
+                            top: `${textPos.y}%`,
+                            transform: 'translate(-50%, -50%)',
+                            fontSize: `${textFontSize}px`,
+                            bottom: 'auto',
+                            cursor: 'grab',
+                            userSelect: 'none',
+                          }}
+                          onMouseDown={e => { e.preventDefault(); setDraggingText(true); }}
+                          onTouchStart={e => { e.preventDefault(); setDraggingText(true); }}
+                        >
                           <p style={{ margin: 0 }}>{form.text}</p>
+                          <div className="story-text-drag-hint">✥ drag</div>
                         </div>
                       )}
 
@@ -882,6 +1006,95 @@ const Stories = () => {
                 </main>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* ════════════ UPLOAD PROGRESS MODAL ════════════ */}
+      {showUploadModal && (
+        <div className="upload-modal-overlay" onClick={uploadStatus === 'error' ? () => setShowUploadModal(false) : undefined}>
+          <div className="upload-modal-card" onClick={e => e.stopPropagation()}>
+
+            {/* Animated circular progress ring */}
+            <div className="upload-ring-wrap">
+              <svg className="upload-ring-svg" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="50" className="upload-ring-bg" />
+                <circle
+                  cx="60" cy="60" r="50"
+                  className={`upload-ring-fill ${
+                    uploadStatus === 'success' ? 'success'
+                    : uploadStatus === 'error'  ? 'error'
+                    : uploadPhase === 'compress' ? 'compress' : 'upload'
+                  }`}
+                  style={{
+                    strokeDashoffset: 314 - (314 * uploadProgress) / 100,
+                  }}
+                />
+              </svg>
+              <div className="upload-ring-icon">
+                {uploadStatus === 'success' ? '✅'
+                  : uploadStatus === 'error' ? '❌'
+                  : uploadPhase === 'compress' ? '🗜️' : '📤'}
+              </div>
+              <div className="upload-ring-pct">
+                {uploadStatus === 'success' ? ''
+                  : uploadStatus === 'error' ? ''
+                  : `${uploadProgress}%`}
+              </div>
+            </div>
+
+            {/* Status text */}
+            <div className="upload-modal-text">
+              {uploadStatus === 'success' && (
+                <>
+                  <p className="upload-modal-title success">Story Shared! 🎉</p>
+                  <p className="upload-modal-sub">Your story is now live</p>
+                </>
+              )}
+              {uploadStatus === 'error' && (
+                <>
+                  <p className="upload-modal-title error">Upload Failed</p>
+                  <p className="upload-modal-sub error-msg">{uploadError}</p>
+                  <button className="btn btn-primary" style={{ marginTop: '12px', width: '100%' }} onClick={() => setShowUploadModal(false)}>Try Again</button>
+                </>
+              )}
+              {uploadStatus === 'running' && (
+                <>
+                  <p className="upload-modal-title">
+                    {uploadPhase === 'compress' ? 'Compressing Video...' : 'Uploading Story...'}
+                  </p>
+                  <p className="upload-modal-sub">
+                    {uploadPhase === 'compress'
+                      ? 'Reducing file size for faster upload'
+                      : 'Please keep this window open'}
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Progress bar (linear, below ring) */}
+            {uploadStatus === 'running' && (
+              <div className="upload-linear-bar-wrap">
+                <div
+                  className={`upload-linear-bar-fill ${uploadPhase}`}
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ════════════ CONFIRM DELETE MODAL ════════════ */}
+      {showConfirmDelete && (
+        <div className="upload-modal-overlay" onClick={() => setShowConfirmDelete(null)}>
+          <div className="upload-modal-card confirm-delete-card" onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>🗑️</div>
+            <p className="upload-modal-title" style={{ color: 'var(--danger, #e74c3c)' }}>Delete Story?</p>
+            <p className="upload-modal-sub">This story will be permanently deleted and cannot be undone.</p>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '18px', width: '100%' }}>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowConfirmDelete(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 1, background: 'linear-gradient(135deg,#e74c3c,#c0392b)' }} onClick={confirmDeleteStory}>Delete</button>
+            </div>
           </div>
         </div>
       )}

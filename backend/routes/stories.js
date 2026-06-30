@@ -55,7 +55,7 @@ router.get('/archive', auth, async (req, res) => {
 // POST /api/stories
 router.post('/', auth, async (req, res) => {
   try {
-    const { image, mediaType, text, filter, musicUrl, musicLabel, musicEmoji, bgColor, visibility, stickers } = req.body;
+    const { image, mediaType, text, filter, musicUrl, musicLabel, musicEmoji, bgColor, visibility, stickers, textX, textY, textSize } = req.body;
     if (!image) return res.status(400).json({ error: 'Story media is required.' });
 
     const userObj = await User.findById(req.userId);
@@ -75,6 +75,9 @@ router.post('/', auth, async (req, res) => {
       bgColor: bgColor || '',
       visibility: visibility || 'friends',
       stickers: stickers || [],
+      textX: textX ?? 50,
+      textY: textY ?? 80,
+      textSize: textSize ?? 20,
       viewers: []
     });
 

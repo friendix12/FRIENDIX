@@ -14,6 +14,9 @@ const StorySchema = new mongoose.Schema({
   bgColor: { type: String, default: '' },
   visibility: { type: String, enum: ['friends', 'public', 'only_me'], default: 'friends' },
   stickers: [{ emoji: String, x: Number, y: Number, size: { type: Number, default: 40 } }], // NEW: stickers
+  textX: { type: Number, default: 50 },   // text overlay X position (%)
+  textY: { type: Number, default: 80 },   // text overlay Y position (%)
+  textSize: { type: Number, default: 20 }, // text font size (px)
   viewers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   // Active window = 48h (filtered in route), DB TTL = 30 days for archive
   createdAt: { type: Date, default: Date.now, expires: 2592000 } // 30 days DB retention

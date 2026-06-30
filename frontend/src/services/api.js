@@ -2,6 +2,36 @@
 // FRIENDIX API Service — connects frontend to backend
 // All API calls go through here
 // ============================================================
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
+
+let ffmpegInstance = null;
+
+const getFFmpeg = async (onProgress) => {
+  if (ffmpegInstance) return ffmpegInstance;
+
+  const ffmpeg = new FFmpeg();
+  ffmpeg.on('log', ({ message }) => {
+    console.log('[FFmpeg Log]', message);
+  });
+
+  ffmpeg.on('progress', ({ progress }) => {
+    const pct = Math.round(progress * 100);
+    if (onProgress) {
+      onProgress({ phase: 'compress', pct });
+    }
+  });
+
+  // Load ffmpeg.wasm from unpkg CDN
+  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+  await ffmpeg.load({
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+  });
+
+  ffmpegInstance = ffmpeg;
+  return ffmpegInstance;
+};
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -57,57 +87,138 @@ export const postsAPI = {
 
   getUserPosts: (userId) => apiFetch(`/posts/user/${userId}`),
 
-  uploadFile: async (file) => {
+  // ── Video Compression (FFmpeg.wasm) ──
+  compressVideo: async (file, onProgress) => {
+    // Compress if file size is > 20MB
+    if (file.size <= 20 * 1024 * 1024) { 
+      return file; 
+    }
+
     try {
-      // 1. Fetch storage config
+      onProgress && onProgress({ phase: 'compress', pct: 0 });
+      const ffmpeg = await getFFmpeg(onProgress);
+
+      const inputName = 'input.mp4';
+      const outputName = 'output.mp4';
+
+      // Write file to FFmpeg virtual file system
+      await ffmpeg.writeFile(inputName, await fetchFile(file));
+
+      // Run FFmpeg compression commands
+      await ffmpeg.exec([
+        '-i', inputName,
+        '-vcodec', 'libx264',
+        '-crf', '28',
+        '-preset', 'fast',
+        '-vf', 'scale=-2:480',
+        '-acodec', 'aac',
+        '-b:a', '128k',
+        outputName
+      ]);
+
+      // Read compressed file
+      const data = await ffmpeg.readFile(outputName);
+      
+      // Cleanup FFmpeg virtual filesystem memory
+      await ffmpeg.deleteFile(inputName);
+      await ffmpeg.deleteFile(outputName);
+
+      // Create compressed File object
+      const compressedBlob = new Blob([data.buffer], { type: 'video/mp4' });
+      const compressedFile = new File([compressedBlob], file.name.replace(/\.[^.]+$/, '_compressed.mp4'), {
+        type: 'video/mp4'
+      });
+
+      console.log(`[FFmpeg] Compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB -> ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
+      
+      onProgress && onProgress({ phase: 'compress', pct: 100 });
+      return compressedFile;
+    } catch (error) {
+      console.error('FFmpeg compression failed, uploading original:', error);
+      return file;
+    }
+  },
+
+  uploadFile: async (file, onProgress) => {
+    const token = getToken();
+    const isVideo = file.type.startsWith('video') || /\.(mp4|mov|avi|mkv|webm|3gp)/i.test(file.name);
+
+    // ── Step 1: Compress video if needed ──
+    let fileToUpload = file;
+    if (isVideo) {
+      try {
+        fileToUpload = await postsAPI.compressVideo(file, onProgress);
+      } catch {
+        fileToUpload = file; // fallback to original
+      }
+    }
+
+    // ── Step 2: Try Telegram direct upload ──
+    try {
       const config = await apiFetch('/posts/storage-config');
       if (config.provider === 'telegram' && config.telegramToken && config.telegramChatId) {
-        const isVideo = file.type.startsWith('video') || file.name.match(/\.(mp4|mov|avi|mkv|webm|3gp)/i);
         const endpoint = isVideo ? 'sendVideo' : 'sendPhoto';
         const fieldName = isVideo ? 'video' : 'photo';
 
         const formData = new FormData();
         formData.append('chat_id', config.telegramChatId);
-        formData.append(fieldName, file);
+        formData.append(fieldName, fileToUpload);
 
-        // Upload directly from browser to Telegram API (bypassing Vercel limits!)
-        const response = await fetch(`https://api.telegram.org/bot${config.telegramToken}/${endpoint}`, {
-          method: 'POST',
-          body: formData,
+        // XHR for real-time upload progress
+        const url = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `https://api.telegram.org/bot${config.telegramToken}/${endpoint}`);
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const pct = Math.round((e.loaded / e.total) * 100);
+              onProgress && onProgress({ phase: 'upload', pct });
+            }
+          };
+          xhr.onload = async () => {
+            if (xhr.status !== 200) { reject(new Error('Telegram upload failed')); return; }
+            const data = JSON.parse(xhr.responseText);
+            const message = data.result;
+            const fileId = isVideo
+              ? message.video.file_id
+              : message.photo[message.photo.length - 1].file_id;
+            // Get file path
+            const fileInfoRes = await fetch(`https://api.telegram.org/bot${config.telegramToken}/getFile?file_id=${fileId}`);
+            if (!fileInfoRes.ok) { reject(new Error('getFile failed')); return; }
+            const fileInfoData = await fileInfoRes.json();
+            resolve(`https://api.telegram.org/file/bot${config.telegramToken}/${fileInfoData.result.file_path}`);
+          };
+          xhr.onerror = () => reject(new Error('Network error'));
+          xhr.send(formData);
         });
-
-        if (!response.ok) {
-          throw new Error('Direct Telegram upload failed');
-        }
-
-        const data = await response.json();
-        const message = data.result;
-        const fileId = isVideo 
-          ? message.video.file_id 
-          : message.photo[message.photo.length - 1].file_id;
-
-        // Get file path
-        const fileInfoRes = await fetch(`https://api.telegram.org/bot${config.telegramToken}/getFile?file_id=${fileId}`);
-        if (!fileInfoRes.ok) {
-          throw new Error('Telegram getFile failed');
-        }
-        const fileInfoData = await fileInfoRes.json();
-        const filePath = fileInfoData.result.file_path;
-
-        return {
-          url: `https://api.telegram.org/file/bot${config.telegramToken}/${filePath}`
-        };
+        onProgress && onProgress({ phase: 'upload', pct: 100 });
+        return { url };
       }
     } catch (err) {
-      console.warn('Direct Telegram upload failed or not configured, falling back to server upload proxy:', err);
+      console.warn('Telegram upload failed, falling back to server proxy:', err);
     }
 
-    // Fallback: upload through proxy server
+    // ── Step 3: Fallback — upload through proxy server (XHR with progress) ──
     const formData = new FormData();
-    formData.append('file', file);
-    return apiFetch('/posts/upload', {
-      method: 'POST',
-      body: formData,
+    formData.append('file', fileToUpload);
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${BASE_URL}/posts/upload`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          onProgress && onProgress({ phase: 'upload', pct });
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status < 200 || xhr.status >= 300) {
+          try { reject(new Error(JSON.parse(xhr.responseText).error || 'Upload failed')); } catch { reject(new Error('Upload failed')); }
+          return;
+        }
+        resolve(JSON.parse(xhr.responseText));
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
     });
   },
 
