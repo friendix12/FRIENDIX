@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar/Navbar';
 import PostCard from '../../components/Post/PostCard';
 import CreateReelModal from '../../components/CreateReel/CreateReelModal';
-import { usersAPI, postsAPI } from '../../services/api';
+import { usersAPI, postsAPI, storiesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { usePresence } from '../../context/PresenceContext';
 import { FiCamera, FiEdit2, FiPlus, FiMessageSquare, FiMoreHorizontal, FiMail, FiBriefcase, FiBookOpen, FiMapPin, FiHeart, FiCalendar, FiVideo, FiPlay } from 'react-icons/fi';
@@ -20,6 +20,7 @@ const ProfilePage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [showCreateReel, setShowCreateReel] = useState(false);
+  const [successModal, setSuccessModal] = useState({ show: false, title: '', message: '' });
 
   // Uploading overlays states
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -112,14 +113,39 @@ const ProfilePage = () => {
   const [hasActiveStory, setHasActiveStory] = useState(false);
 
   useEffect(() => {
-    const savedStories = localStorage.getItem('friendix_local_stories');
-    const storiesList = savedStories ? JSON.parse(savedStories) : [];
-    const activeStoryExists = storiesList.some(s => {
-      const isAuthor = s.authorId?.toString() === targetId?.toString();
-      const isFresh = (Date.now() - new Date(s.createdAt).getTime()) < 24 * 60 * 60 * 1000;
-      return isAuthor && isFresh;
-    });
-    setHasActiveStory(activeStoryExists);
+    const checkStory = async () => {
+      try {
+        const res = await storiesAPI.getAll();
+        const apiStories = res?.stories || [];
+        
+        const savedStories = localStorage.getItem('friendix_local_stories');
+        const localStories = savedStories ? JSON.parse(savedStories) : [];
+        
+        const allStories = [...apiStories, ...localStories];
+        const activeStoryExists = allStories.some(s => {
+          const authorIdStr = (s.authorId?._id || s.authorId)?.toString();
+          const isAuthor = authorIdStr === targetId?.toString();
+          const isFresh = (Date.now() - new Date(s.createdAt).getTime()) < 24 * 60 * 60 * 1000;
+          return isAuthor && isFresh;
+        });
+        setHasActiveStory(activeStoryExists);
+      } catch (err) {
+        console.error("Error checking active stories:", err);
+        const savedStories = localStorage.getItem('friendix_local_stories');
+        const localStories = savedStories ? JSON.parse(savedStories) : [];
+        const activeStoryExists = localStories.some(s => {
+          const authorIdStr = (s.authorId?._id || s.authorId)?.toString();
+          const isAuthor = authorIdStr === targetId?.toString();
+          const isFresh = (Date.now() - new Date(s.createdAt).getTime()) < 24 * 60 * 60 * 1000;
+          return isAuthor && isFresh;
+        });
+        setHasActiveStory(activeStoryExists);
+      }
+    };
+    
+    if (targetId) {
+      checkStory();
+    }
   }, [targetId]);
 
   const userPhotos = userPosts.filter(p => p.image && !p.image.match(/\.(mp4|mov|avi|mkv|webm|3gp)/i));
@@ -129,19 +155,42 @@ const ProfilePage = () => {
     try {
       if (action === 'send') {
         await usersAPI.sendFriendRequest(targetId);
+        setSuccessModal({
+          show: true,
+          title: 'Request Sent',
+          message: `Friend request sent to ${profileUser?.fullName || 'this user'}.`
+        });
       } else if (action === 'accept') {
         await usersAPI.acceptFriendRequest(targetId);
+        setSuccessModal({
+          show: true,
+          title: 'Connected',
+          message: `You are now friends with ${profileUser?.fullName || 'this user'}!`
+        });
       } else if (action === 'decline' || action === 'cancel') {
         await usersAPI.declineFriendRequest(targetId);
+        setSuccessModal({
+          show: true,
+          title: 'Cancelled',
+          message: `Friend request cancelled.`
+        });
       } else if (action === 'unfriend') {
         if (window.confirm('Remove this friend?')) {
           await usersAPI.unfriend(targetId);
+          setSuccessModal({
+            show: true,
+            title: 'Unfriended',
+            message: `Removed ${profileUser?.fullName || 'this user'} from friends.`
+          });
         } else {
           return;
         }
       }
       await refreshUser();
       await fetchProfileData();
+      setTimeout(() => {
+        setSuccessModal({ show: false, title: '', message: '' });
+      }, 2000);
     } catch (err) {
       console.error(err);
       alert('Failed to process friend request.');
@@ -152,10 +201,23 @@ const ProfilePage = () => {
     try {
       if (profileUser?.isFollowing) {
         await usersAPI.unfollow(targetId);
+        setSuccessModal({
+          show: true,
+          title: 'Unfollowed',
+          message: `You stopped following ${profileUser?.fullName || 'this creator'}.`
+        });
       } else {
         await usersAPI.follow(targetId);
+        setSuccessModal({
+          show: true,
+          title: 'Following',
+          message: `You are now following ${profileUser?.fullName || 'this creator'}!`
+        });
       }
       await fetchProfileData();
+      setTimeout(() => {
+        setSuccessModal({ show: false, title: '', message: '' });
+      }, 2000);
     } catch (err) {
       console.error(err);
       alert('Failed to process follow action.');
@@ -260,13 +322,38 @@ const ProfilePage = () => {
             <div className="profile-avatar-section">
               <div 
                 className={`profile-avatar-wrap ${hasActiveStory ? 'has-story' : ''}`}
-                style={hasActiveStory ? { cursor: 'pointer' } : {}}
-                onClick={() => hasActiveStory ? navigate('/', { state: { openStoryForUser: targetId } }) : null}
+                style={{ cursor: hasActiveStory ? 'pointer' : 'default', position: 'relative' }}
+                onClick={(e) => {
+                  if (hasActiveStory) {
+                    e.stopPropagation();
+                    navigate('/', { state: { openStoryForUser: targetId } });
+                  }
+                }}
               >
                 {profileUser?.avatar ? (
-                  <img src={profileUser.avatar} alt={profileUser?.fullName} className="profile-avatar" />
+                  <img 
+                    src={profileUser.avatar} 
+                    alt={profileUser?.fullName} 
+                    className="profile-avatar" 
+                    style={{ cursor: hasActiveStory ? 'pointer' : 'default', position: 'relative', zIndex: 3 }}
+                    onClick={(e) => {
+                      if (hasActiveStory) {
+                        e.stopPropagation();
+                        navigate('/', { state: { openStoryForUser: targetId } });
+                      }
+                    }}
+                  />
                 ) : (
-                  <div className="avatar-placeholder" style={{ width: '168px', height: '168px', fontSize: '3.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary)', color: 'white', fontWeight: 800 }}>
+                  <div 
+                    className="avatar-placeholder" 
+                    style={{ width: '168px', height: '168px', fontSize: '3.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary)', color: 'white', fontWeight: 800, cursor: hasActiveStory ? 'pointer' : 'default', position: 'relative', zIndex: 3 }}
+                    onClick={(e) => {
+                      if (hasActiveStory) {
+                        e.stopPropagation();
+                        navigate('/', { state: { openStoryForUser: targetId } });
+                      }
+                    }}
+                  >
                     {profileUser?.firstName?.[0]}{profileUser?.lastName?.[0]}
                   </div>
                 )}
@@ -351,6 +438,7 @@ const ProfilePage = () => {
                   </>
                 ) : (
                   <>
+                    {/* Friend action */}
                     {isFriend ? (
                       <button className="btn btn-secondary" onClick={() => handleFriendAction('unfriend')}>✓ Friends</button>
                     ) : hasSentRequest ? (
@@ -361,22 +449,24 @@ const ProfilePage = () => {
                         <button className="btn btn-secondary" onClick={() => handleFriendAction('decline')}>Decline</button>
                       </div>
                     ) : (
-                      <>
-                        <button className="btn btn-primary" onClick={() => handleFriendAction('send')}>Add Friend</button>
-                        {profileUser?.isProfessional && (
-                          <button
-                            className={`btn ${profileUser?.isFollowing ? 'btn-secondary' : 'btn-primary'}`}
-                            onClick={handleFollowAction}
-                          >
-                            {profileUser?.isFollowing ? '✓ Following' : 'Follow'}
-                          </button>
-                        )}
-                      </>
+                      <button className="btn btn-primary" onClick={() => handleFriendAction('send')}>Add Friend</button>
                     )}
-                    <button className="btn btn-secondary" onClick={() => navigate(`/messenger?userId=${targetId}`)}>
+
+                    {/* Follow button for creators */}
+                    {profileUser?.isProfessional && (
+                      <button
+                        className={`btn ${profileUser?.isFollowing ? 'btn-secondary' : 'btn-primary'}`}
+                        onClick={handleFollowAction}
+                        style={{ marginLeft: '8px' }}
+                      >
+                        {profileUser?.isFollowing ? '✓ Following' : 'Follow'}
+                      </button>
+                    )}
+
+                    <button className="btn btn-secondary" onClick={() => navigate(`/messenger?userId=${targetId}`)} style={{ marginLeft: '8px' }}>
                       <FiMessageSquare style={{ marginRight: '6px' }} /> Message
                     </button>
-                    <button className="btn btn-secondary"><FiMoreHorizontal /></button>
+                    <button className="btn btn-secondary" style={{ marginLeft: '8px' }}><FiMoreHorizontal /></button>
                   </>
                 )}
               </div>
@@ -695,6 +785,19 @@ const ProfilePage = () => {
         onClose={() => setShowCreateReel(false)}
         onUpload={fetchProfileData}
       />
+
+      {/* Success Animation Modal */}
+      {successModal.show && (
+        <div className="success-modal-overlay">
+          <div className="success-modal-card">
+            <div className="success-checkmark-circle">
+              ✓
+            </div>
+            <h3 className="success-modal-title">{successModal.title}</h3>
+            <p className="success-modal-desc">{successModal.message}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

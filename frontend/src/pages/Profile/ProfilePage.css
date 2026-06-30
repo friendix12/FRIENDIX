@@ -464,3 +464,78 @@
 @keyframes spinUpload {
   to { transform: rotate(360deg); }
 }
+
+/* Success Animation Modal */
+.success-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: successFadeIn 0.25s ease-out forwards;
+}
+
+.success-modal-card {
+  background: var(--bg-card, #ffffff);
+  border-radius: 20px;
+  padding: 32px 24px;
+  width: 320px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.1));
+  animation: successScaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.success-checkmark-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #E8F5E9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  color: #2E7D32;
+  font-size: 2.8rem;
+  font-weight: bold;
+  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.2);
+  animation: successPopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.1s both;
+}
+
+[data-theme="dark"] .success-checkmark-circle {
+  background: rgba(46, 125, 50, 0.2);
+  color: #81C784;
+}
+
+.success-modal-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-primary, #1e293b);
+  margin-bottom: 8px;
+}
+
+.success-modal-desc {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.4;
+  margin: 0;
+}
+
+@keyframes successFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes successScaleIn {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes successPopIn {
+  0% { transform: scale(0); opacity: 0; }
+  80% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}

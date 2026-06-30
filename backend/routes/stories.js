@@ -12,8 +12,9 @@ const ACTIVE_WINDOW_MS = 48 * 60 * 60 * 1000;
 router.get('/', auth, async (req, res) => {
   try {
     const fortyEightHoursAgo = new Date(Date.now() - ACTIVE_WINDOW_MS);
-    const me = await User.findById(req.userId).select('friends');
+    const me = await User.findById(req.userId).select('friends followingList');
     const myFriendIds = (me?.friends || []).map(id => id.toString());
+    const myFollowingIds = (me?.followingList || []).map(id => id.toString());
 
     const allStories = await Story.find({ createdAt: { $gte: fortyEightHoursAgo } })
       .populate('authorId', 'fullName firstName lastName avatar')
@@ -23,8 +24,9 @@ router.get('/', auth, async (req, res) => {
       const storyAuthorId = (story.authorId?._id || story.authorId)?.toString();
       const isMyStory = storyAuthorId === req.userId.toString();
       const isFriend = myFriendIds.includes(storyAuthorId);
+      const isFollowing = myFollowingIds.includes(storyAuthorId);
       const isPublic = story.visibility === 'public';
-      return isMyStory || (isFriend && story.visibility !== 'only_me') || isPublic;
+      return isMyStory || ((isFriend || isFollowing) && story.visibility !== 'only_me') || isPublic;
     });
 
     res.json({ stories: visibleStories });

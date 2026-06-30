@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const User = require('../models/User');
@@ -46,9 +46,31 @@ router.get('/suggestions', auth, async (req, res) => {
 router.post('/professional/toggle', auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
     user.isProfessional = !user.isProfessional;
     if (user.isProfessional) {
       user.profileCategory = user.profileCategory === 'Personal' ? 'Digital Creator' : user.profileCategory;
+      
+      // Auto-migrate friends to followers List
+      if (user.friends && user.friends.length > 0) {
+        for (const friendId of user.friends) {
+          if (!user.followersList.includes(friendId)) {
+            user.followersList.push(friendId);
+            user.followers = (user.followers || 0) + 1;
+          }
+          
+          // Also set the friend to follow this creator
+          const friendObj = await User.findById(friendId);
+          if (friendObj) {
+            if (!friendObj.followingList.includes(user._id)) {
+              friendObj.followingList.push(user._id);
+              friendObj.following = (friendObj.following || 0) + 1;
+              await friendObj.save();
+            }
+          }
+        }
+      }
     }
     await user.save();
     res.json({
@@ -275,14 +297,22 @@ router.post('/:id/follow', auth, async (req, res) => {
 // DELETE /api/users/:id/unfollow — unfollow a user
 router.delete('/:id/unfollow', auth, async (req, res) => {
   try {
-    await User.findByIdAndUpdate(req.userId, {
-      $pull: { followingList: req.params.id },
-      $inc: { following: -1 }
-    });
-    await User.findByIdAndUpdate(req.params.id, {
-      $pull: { followersList: req.userId },
-      $inc: { followers: -1 }
-    });
+    const me = await User.findById(req.userId);
+    const target = await User.findById(req.params.id);
+    if (!me || !target) return res.status(404).json({ error: 'User not found.' });
+
+    const wasFollowing = me.followingList && me.followingList.includes(req.params.id);
+    if (wasFollowing) {
+      await User.findByIdAndUpdate(req.userId, {
+        $pull: { followingList: req.params.id },
+        $set: { following: Math.max(0, me.followingList.length - 1) }
+      });
+      await User.findByIdAndUpdate(req.params.id, {
+        $pull: { followersList: req.userId },
+        $set: { followers: Math.max(0, target.followersList.length - 1) }
+      });
+    }
+
     const updatedMe = await User.findById(req.userId).select('followingList following');
     res.json({
       success: true,
@@ -335,8 +365,8 @@ router.get('/:id', auth, async (req, res) => {
     const isFriend = me.friends && me.friends.some(f => f.toString() === req.params.id);
     const isFollowing = me.followingList && me.followingList.includes(req.params.id);
 
-    const followerCount = user.followersList?.length || user.followers || 0;
-    const followingCount = user.followingList?.length || user.following || 0;
+    const followerCount = typeof user.followersList?.length === 'number' ? user.followersList.length : (user.followers || 0);
+    const followingCount = typeof user.followingList?.length === 'number' ? user.followingList.length : (user.following || 0);
 
     res.json({
       user: {
@@ -455,11 +485,26 @@ router.delete('/:id/decline-request', auth, async (req, res) => {
 // DELETE /api/users/:id/unfriend — unfriend
 router.delete('/:id/unfriend', auth, async (req, res) => {
   try {
+    const me = await User.findById(req.userId);
+    const target = await User.findById(req.params.id);
+    if (!me || !target) return res.status(404).json({ error: 'User not found.' });
+
     await User.findByIdAndUpdate(req.userId, { $pull: { friends: req.params.id } });
     await User.findByIdAndUpdate(req.params.id, { $pull: { friends: req.userId } });
-    // Also unfollow when unfriending
-    await User.findByIdAndUpdate(req.userId, { $pull: { followingList: req.params.id }, $inc: { following: -1 } });
-    await User.findByIdAndUpdate(req.params.id, { $pull: { followersList: req.userId }, $inc: { followers: -1 } });
+    
+    // Also unfollow when unfriending (only if they were actually following!)
+    const wasFollowing = me.followingList && me.followingList.includes(req.params.id);
+    if (wasFollowing) {
+      await User.findByIdAndUpdate(req.userId, { 
+        $pull: { followingList: req.params.id }, 
+        $set: { following: Math.max(0, me.followingList.length - 1) } 
+      });
+      await User.findByIdAndUpdate(req.params.id, { 
+        $pull: { followersList: req.userId }, 
+        $set: { followers: Math.max(0, target.followersList.length - 1) } 
+      });
+    }
+    
     res.json({ message: 'Unfriended successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
